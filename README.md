@@ -48,6 +48,24 @@ npm run dev
 
 Abrir [http://localhost:3000](http://localhost:3000) (redirige al panel).
 
+### Acceso desde el celular (misma red WiFi)
+
+1. En la PC, **pará** el servidor si estaba con `npm run dev` y arrancalo así:
+   ```bash
+   npm run dev:lan
+   ```
+   Eso hace que Next escuche en **todas las interfaces** (`0.0.0.0`), no solo en `localhost`.
+
+2. Obtené la **IP local de la PC** en la misma WiFi que el celular:
+   - **Windows** (PowerShell o CMD): `ipconfig` → buscá **IPv4** del adaptador Wi‑Fi o Ethernet (ej. `192.168.0.42`).
+   - El celular y la PC deben estar en la **misma red** (no datos móviles del celular salvo que uses hotspot de la PC).
+
+3. En el navegador del celular abrí: **`http://TU_IP:3000`** (ej. `http://192.168.0.42:3000`).
+
+4. Si no carga, revisá el **firewall de Windows**: permití conexiones entrantes para **Node.js** o el puerto **3000** (TCP) en redes privadas.
+
+5. **Google Calendar desde el celular:** si usás OAuth, en `.env` poné `NEXT_PUBLIC_APP_URL=http://TU_IP:3000` y agregá esa misma URL + `/api/google-calendar/callback` en la consola de Google como redirect autorizado.
+
 ---
 
 ## Variables de entorno
@@ -98,7 +116,8 @@ Separador: **coma** o **punto y coma**.
 
 | Comando | Descripción |
 |---------|-------------|
-| `npm run dev` | Servidor de desarrollo |
+| `npm run dev` | Servidor de desarrollo (solo esta PC) |
+| `npm run dev:lan` | Desarrollo escuchando en la red local (celular vía WiFi) |
 | `npm run build` | Build de producción |
 | `npm run start` | Servidor producción (tras `build`) |
 | `npm run lint` | ESLint |
