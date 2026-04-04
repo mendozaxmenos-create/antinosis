@@ -21,7 +21,7 @@ Aplicación web para **controlar el gasto con tarjeta de crédito**: presupuesto
 ## Stack
 
 - **Next.js 14** (App Router) · **TypeScript** · **Tailwind CSS**
-- **Prisma** + **SQLite** (MVP)
+- **Prisma** + **PostgreSQL** (Neon / Supabase / Vercel Postgres; gratis en tier hobby)
 - **shadcn/ui** (Radix) · **React Hook Form** · **Zod** · **Recharts** · **date-fns**
 - **googleapis** (Calendar API, opcional)
 
@@ -36,17 +36,24 @@ Aplicación web para **controlar el gasto con tarjeta de crédito**: presupuesto
 
 ## Instalación rápida
 
+1. **Base de datos PostgreSQL gratis:** creá un proyecto en [Neon](https://neon.tech) (o Supabase), copiá el **connection string** (`DATABASE_URL`, con `?sslmode=require` si aplica).
+
+2. En el proyecto:
+
 ```bash
 git clone <url-del-repo>
 cd antinosis
 npm install
 cp .env.example .env
+# Editá .env y pegá DATABASE_URL de Neon
 npx prisma db push
 npm run db:seed
 npm run dev
 ```
 
 Abrir [http://localhost:3000](http://localhost:3000) (redirige al panel).
+
+> Antes usábamos SQLite solo en local; **Vercel y otros hostings serverless no sirven para un archivo `.db`**. Por eso el repo usa PostgreSQL para desarrollo y producción.
 
 ### Acceso desde el celular (misma red WiFi)
 
@@ -74,11 +81,34 @@ Copiá `.env.example` a `.env` y completá:
 
 | Variable | Uso |
 |----------|-----|
-| `DATABASE_URL` | SQLite: por defecto `file:./dev.db` (ruta relativa al schema en `db/prisma/`). |
-| `NEXT_PUBLIC_APP_URL` | URL base de la app (ej. `http://localhost:3000`). Necesaria para OAuth de Google. |
+| `DATABASE_URL` | **PostgreSQL** (ej. Neon). Formato: `postgresql://user:pass@host/db?sslmode=require` |
+| `NEXT_PUBLIC_APP_URL` | URL pública de la app: local `http://localhost:3000` o en Vercel `https://tu-proyecto.vercel.app` (necesaria para OAuth de Google). |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Opcional: integración con Google Calendar. |
 
 No commitees `.env` (está en `.gitignore`).
+
+---
+
+## Deploy en Vercel (gratis, plan Hobby)
+
+1. Subí el código a **GitHub** (ya lo tenés).
+2. En [vercel.com](https://vercel.com) → **Add New** → **Project** → importá el repo.
+3. Dejá **Framework Preset: Next.js**; **Build Command** y **Output** por defecto suelen estar bien (`npm run build` ya ejecuta `prisma generate`, `db push` y `next build`).
+4. En **Environment Variables** agregá al menos:
+   - `DATABASE_URL` = connection string de **Neon** (misma base que uses para desarrollo o una branch “production”).
+   - `NEXT_PUBLIC_APP_URL` = la URL que te asigne Vercel al terminar el primer deploy (ej. `https://antinosis.vercel.app`), o tu dominio custom.
+   - Opcional: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` si usás Calendar; en Google Cloud agregá como redirect autorizado:  
+     `https://TU-DOMINIO.vercel.app/api/google-calendar/callback`
+5. **Deploy.** El primer build aplica el schema (`prisma db push`) a la base.
+6. **Datos iniciales:** desde tu PC (con el mismo `DATABASE_URL` en `.env`):
+
+   ```bash
+   npx prisma db seed
+   ```
+
+   O usá la app vacía y cargá presupuesto / tarjetas a mano.
+
+Si el build falla, revisá en los logs que `DATABASE_URL` esté bien y que la base acepte conexiones SSL.
 
 ---
 
@@ -118,7 +148,7 @@ Separador: **coma** o **punto y coma**.
 |---------|-------------|
 | `npm run dev` | Servidor de desarrollo (solo esta PC) |
 | `npm run dev:lan` | Desarrollo escuchando en la red local (celular vía WiFi) |
-| `npm run build` | Build de producción |
+| `npm run build` | `prisma generate` + `db push` + `next build` (necesita `DATABASE_URL` válido) |
 | `npm run start` | Servidor producción (tras `build`) |
 | `npm run lint` | ESLint |
 | `npm run db:push` | Aplicar schema Prisma a la base |
@@ -156,11 +186,9 @@ El MVP usa **un usuario demo** (el primero en la tabla `User`). El seed crea tar
 
 ---
 
-## Despliegue
+## Despliegue (otros proveedores)
 
-- Ajustá `DATABASE_URL` (p. ej. PostgreSQL en producción).
-- Definí `NEXT_PUBLIC_APP_URL` con la URL pública.
-- Revisá límites de OAuth de Google (origen autorizado de JavaScript + redirect URI).
+- Misma idea: `DATABASE_URL` apuntando a PostgreSQL, `NEXT_PUBLIC_APP_URL` público, variables de Google si aplica.
 
 ---
 
