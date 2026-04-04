@@ -1,0 +1,117 @@
+import { prisma } from "@/lib/prisma";
+import { categorizeFromText } from "@/lib/statement-categorize";
+import { computePaymentDueDate } from "@/lib/payment-due-date";
+import type { ParsedStatementRow } from "@/lib/parse-statement-csv";
+import { createPaymentDueCalendarEvent } from "@/lib/google-calendar";
+
+export async function importStatementRows(input: {
+  userId: string;
+  cardId: string;
+  importMonth: number;
+  importYear: number;
+  fileName: string;
+  rows: ParsedStatementRow[];
+}) {
+  const card = await prisma.creditCard.findFirst({
+    where: { id: input.cardId, userId: input.userId, active: true },
+  });
+  if (!card) throw new Error("Tarjeta inválida");
+
+  const categories = await prisma.category.findMany({ where: { active: true } });
+  const byName = new Map(categories.map((c) => [c.name, c.id]));
+
+  const paymentDueDate = computePaymentDueDate(input.importYear, input.importMonth, card.dueDay);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const stmt = await tx.statementImport.create({
+      data: {
+        userId: input.userId,
+        cardId: input.cardId,
+        bank: card.bank,
+        fileName: input.fileName,
+        importMonth: input.importMonth,
+        importYear: input.importYear,
+        status: "completed",
+        paymentDueDate,
+        rowCount: input.rows.length,
+      },
+    });
+
+    let created = 0;
+    for (const row of input.rows) {
+      const catName = categorizeFromText(row.description, row.merchant);
+      const categoryId = byName.get(catName) ?? byName.get("Other");
+      if (!categoryId) continue;
+
+      await tx.expense.create({
+        data: {
+          transactionDate: row.transactionDate,
+          postedMonth: input.importMonth,
+          postedYear: input.importYear,
+          amount: row.amount,
+          description: row.description,
+          merchant: row.merchant,
+          installments: 1,
+          notes: `Importado desde ${input.fileName}`,
+          sourceType: "imported_file",
+          reconciliationStatus: "pending",
+          cardId: input.cardId,
+          categoryId,
+        },
+      });
+      created += 1;
+    }
+
+    const dueMonth = paymentDueDate.getMonth() + 1;
+    const dueYear = paymentDueDate.getFullYear();
+
+    const existingDue = await tx.alertEvent.findFirst({
+      where: { statementImportId: stmt.id, alertKind: "payment_due" },
+    });
+    if (!existingDue) {
+      await tx.alertEvent.create({
+        data: {
+          userId: input.userId,
+          month: dueMonth,
+          year: dueYear,
+          alertKind: "payment_due",
+          thresholdPercentage: null,
+          message: `Vencimiento de pago (${card.bank} ·••• ${card.last4}): ${formatDueMessage(paymentDueDate)}`,
+          dueDate: paymentDueDate,
+          statementImportId: stmt.id,
+        },
+      });
+    }
+
+    return { statementImport: stmt, expensesCreated: created, paymentDueDate };
+  });
+
+  const user = await prisma.user.findUnique({
+    where: { id: input.userId },
+    select: { googleRefreshToken: true },
+  });
+  if (user?.googleRefreshToken) {
+    try {
+      const eventId = await createPaymentDueCalendarEvent({
+        refreshToken: user.googleRefreshToken,
+        summary: `Vencimiento tarjeta ${card.bank} ·••• ${card.last4}`,
+        description: `Resumen ${input.fileName} (${input.importMonth}/${input.importYear}). Importado desde CardSpend.`,
+        dueDate: result.paymentDueDate,
+      });
+      if (eventId) {
+        await prisma.statementImport.update({
+          where: { id: result.statementImport.id },
+          data: { googleCalendarEventId: eventId },
+        });
+      }
+    } catch (e) {
+      console.error("[statementImport] Google Calendar", e);
+    }
+  }
+
+  return result;
+}
+
+function formatDueMessage(d: Date): string {
+  return d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+}

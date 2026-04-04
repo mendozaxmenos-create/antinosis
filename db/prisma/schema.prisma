@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     String                  @id @default(cuid())
+  name                   String
+  createdAt              DateTime                @default(now())
+  /// OAuth refresh token para Google Calendar (tratar como secreto)
+  googleRefreshToken     String?
+  googleCalendarEmail    String?
+  monthlyBudgetConfigs   MonthlyBudgetConfig[]
+  creditCards            CreditCard[]
+  alertEvents            AlertEvent[]
+  statementImports       StatementImport[]
+  reconciliationResults  ReconciliationResult[]
+}
+
+model MonthlyBudgetConfig {
+  id                  String           @id @default(cuid())
+  userId              String
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month               Int
+  year                Int
+  monthlyIncome       Float?
+  allowedPercentage   Float?
+  manualCardLimit     Float?
+  computedCardLimit   Float
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  alertThresholds     AlertThreshold[]
+
+  @@unique([userId, month, year])
+  @@index([userId, year, month])
+}
+
+model AlertThreshold {
+  id                    String              @id @default(cuid())
+  percentage            Int
+  enabled               Boolean             @default(true)
+  monthlyBudgetConfigId String
+  monthlyBudgetConfig   MonthlyBudgetConfig @relation(fields: [monthlyBudgetConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([monthlyBudgetConfigId, percentage])
+}
+
+model CreditCard {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bank       String
+  name       String
+  brand      String?
+  last4      String
+  closingDay Int
+  dueDay     Int
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  expenses   Expense[]
+  statementImports StatementImport[]
+
+  @@index([userId])
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  active   Boolean   @default(true)
+  expenses Expense[]
+}
+
+model Expense {
+  id                   String                 @id @default(cuid())
+  transactionDate      DateTime
+  postedMonth          Int
+  postedYear           Int
+  amount               Float
+  description          String?
+  merchant             String?
+  installments         Int                    @default(1)
+  notes                String?
+  /// manual | imported_pdf | imported_file
+  sourceType           String
+  /// pending | matched | unmatched | adjusted
+  reconciliationStatus String                 @default("pending")
+  cardId               String
+  card                 CreditCard             @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  categoryId           String
+  category             Category               @relation(fields: [categoryId], references: [id])
+  createdAt            DateTime               @default(now())
+
+  @@index([postedYear, postedMonth])
+  @@index([cardId])
+}
+
+model AlertEvent {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month               Int
+  year                Int
+  /// threshold | payment_due
+  alertKind           String   @default("threshold")
+  /// Solo alertas de presupuesto (null si es payment_due)
+  thresholdPercentage Int?
+  message             String
+  /// Fecha de vencimiento de pago (resumen importado)
+  dueDate             DateTime?
+  statementImportId   String?
+  triggeredAt         DateTime @default(now())
+
+  @@index([userId, year, month])
+  @@index([alertKind])
+}
+
+model StatementImport {
+  id          String                @id @default(cuid())
+  userId      String
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId      String?
+  card        CreditCard?           @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  bank        String
+  fileName    String
+  importMonth Int
+  importYear  Int
+  /// pending | processing | completed | failed
+  status      String                @default("pending")
+  /// Vencimiento de pago calculado según la tarjeta (día de vencimiento)
+  paymentDueDate DateTime?
+  rowCount    Int?
+  /// ID del evento en Google Calendar (si se creó al importar)
+  googleCalendarEventId String?
+  createdAt   DateTime              @default(now())
+}
+
+model ReconciliationResult {
+  id                     String   @id @default(cuid())
+  userId                 String
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month                  Int
+  year                   Int
+  matchedCount           Int
+  unmatchedManualCount Int
+  unmatchedImportedCount Int
+  createdAt              DateTime @default(now())
+
+  @@unique([userId, month, year])
+}
