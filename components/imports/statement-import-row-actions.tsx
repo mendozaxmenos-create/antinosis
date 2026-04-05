@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Wallet2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { deleteStatementImportAction, updateStatementImportMetaAction } from "@/app/actions";
 import type { StatementImportListRow } from "@/lib/imports-page-data";
+import { StatementImportPayableDialog } from "@/components/imports/statement-import-payable-dialog";
 
 export function StatementImportRowActions({ row }: { row: StatementImportListRow }) {
   const [editOpen, setEditOpen] = useState(false);
+  const [payableOpen, setPayableOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,20 @@ export function StatementImportRowActions({ row }: { row: StatementImportListRow
           variant="ghost"
           size="sm"
           className="h-8 px-2"
+          title="Editar importes en ARS (y USD si aplica)"
+          onClick={() => {
+            setError(null);
+            setPayableOpen(true);
+          }}
+        >
+          <Wallet2 className="h-4 w-4" />
+          <span className="sr-only">Importes</span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2"
           disabled={!canEdit}
           title={
             canEdit
@@ -83,7 +99,7 @@ export function StatementImportRowActions({ row }: { row: StatementImportListRow
           }}
         >
           <Pencil className="h-4 w-4" />
-          <span className="sr-only">Editar</span>
+          <span className="sr-only">Período</span>
         </Button>
         <Button
           type="button"
@@ -158,6 +174,8 @@ export function StatementImportRowActions({ row }: { row: StatementImportListRow
           </form>
         </DialogContent>
       </Dialog>
+
+      <StatementImportPayableDialog row={row} open={payableOpen} onOpenChange={setPayableOpen} />
 
       <Dialog
         open={deleteOpen}

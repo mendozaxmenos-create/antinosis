@@ -1,11 +1,12 @@
 import { format, isValid } from "date-fns";
 
-/** Evita 500 si una fecha es inválida o viene mal de la BD (date-fns `format` lanza). */
-export function safeFormatDate(d: Date | null | undefined, pattern: string, empty = "—"): string {
+/** Evita 500 si una fecha es inválida o viene mal de la BD (date-fns `format` lanza). Acepta ISO string (props cliente). */
+export function safeFormatDate(d: Date | string | null | undefined, pattern: string, empty = "—"): string {
   if (d == null) return empty;
-  if (!isValid(d)) return empty;
+  const date = typeof d === "string" ? new Date(d) : d;
+  if (!isValid(date)) return empty;
   try {
-    return format(d, pattern);
+    return format(date, pattern);
   } catch {
     return empty;
   }
@@ -36,6 +37,14 @@ export function formatArs(value: number): string {
     style: "currency",
     currency: "ARS",
     maximumFractionDigits: 0,
+  }).format(value);
+}
+
+export function formatUsd(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
   }).format(value);
 }
 

@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getDefaultUserId } from "@/lib/user";
-import { currentMonthYear, formatArs, safeFormatDate, safeFormatMonthYearLabel } from "@/lib/helpers";
+import { currentMonthYear, formatArs, formatUsd, safeFormatDate, safeFormatMonthYearLabel } from "@/lib/helpers";
 import { loadImportsPageData } from "@/lib/imports-page-data";
 import { ManualStatementForm } from "@/components/forms/manual-statement-form";
 import { StatementUploadForm } from "@/components/forms/statement-upload-form";
@@ -141,7 +141,11 @@ export default async function ImportsPage({
       <Card>
         <CardHeader>
           <CardTitle>Historial de importaciones</CardTitle>
-          <CardDescription>Archivos procesados</CardDescription>
+          <CardDescription>
+            Archivos procesados. El total en pesos es la suma del equivalente en ARS de cada movimiento: pesos del
+            archivo tal cual, más dólares convertidos con la cotización BCRA del día de cada consumo al importar (como
+            en el panel). Podés ver y corregir cada línea con el ícono de billetera.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {imports.length === 0 ? (
@@ -169,7 +173,15 @@ export default async function ImportsPage({
                     <TableCell>
                       {safeFormatMonthYearLabel(row.importMonth, row.importYear, "MMM yyyy")}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-sm">{formatArs(row.totalPayableArs)}</TableCell>
+                    <TableCell className="text-right text-sm align-top">
+                      <div className="tabular-nums font-medium">{formatArs(row.totalPayableArs)}</div>
+                      {row.payableUsdAsArs > 0 ? (
+                        <div className="text-xs text-muted-foreground mt-1 max-w-[220px] ml-auto">
+                          Incluye {formatUsd(row.payableUsdOriginal)} en USD → {formatArs(row.payableUsdAsArs)} en ARS
+                          (tipo BCRA al importar)
+                        </div>
+                      ) : null}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
                       {safeFormatDate(row.paymentDueDate, "d MMM yyyy")}
                     </TableCell>

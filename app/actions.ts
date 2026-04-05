@@ -13,6 +13,7 @@ import { getPdfjsLegacyWorkerSrc } from "@/lib/pdf-worker-path";
 import { importManualStatement, importStatementRows } from "@/services/statementImportService";
 import { computePaymentDueDate } from "@/lib/payment-due-date";
 import { deleteCalendarEvent, updatePaymentDueCalendarEvent } from "@/lib/google-calendar";
+import { STATEMENT_IMPORT_EXPENSE_SOURCE_TYPES } from "@/lib/statement-import-expense-sources";
 
 /** Import dinámico: evita cargar pdfjs-dist al evaluar este módulo (GET /imports). Polyfills antes de pdf-parse (DOMMatrix en Node). */
 async function statementFileToText(file: File): Promise<string> {
@@ -763,5 +764,120 @@ export async function deleteStatementImportAction(
     }
     console.error("[deleteStatementImport]", e);
     return { ok: false, error: e instanceof Error ? e.message : "No se pudo eliminar." };
+  }
+}
+
+const importedExpenseLineSchema = z.object({
+  expenseId: z.string().min(1),
+  amountArs: z.coerce.number().positive(),
+  /** Solo consumos en USD: monto en dólares del resumen. */
+  originalAmountUsd: z.coerce.number().positive().nullable().optional(),
+});
+
+const updateImportedExpenseAmountsSchema = z.object({
+  statementImportId: z.string().min(1),
+  lines: z.array(importedExpenseLineSchema).min(1),
+});
+
+export async function updateImportedExpenseAmountsAction(
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const userId = await getDefaultUserId();
+  if (!userId) return { ok: false, error: "Sesión inválida." };
+  try {
+    const data = updateImportedExpenseAmountsSchema.parse(input);
+
+    const stmt = await prisma.statementImport.findFirst({
+      where: { id: data.statementImportId, userId },
+    });
+    if (!stmt) return { ok: false, error: "Resumen no encontrado." };
+
+    const existingRows = await prisma.expense.findMany({
+      where: {
+        statementImportId: data.statementImportId,
+        card: { userId },
+        sourceType: { in: [...STATEMENT_IMPORT_EXPENSE_SOURCE_TYPES] },
+      },
+      select: { id: true },
+    });
+    const existingSet = new Set(existingRows.map((e) => e.id));
+    const submitted = new Set(data.lines.map((l) => l.expenseId));
+    if (existingSet.size !== submitted.size || existingSet.size === 0) {
+      return {
+        ok: false,
+        error: "La lista de movimientos no coincide con el resumen. Recargá la página.",
+      };
+    }
+    for (const id of Array.from(existingSet)) {
+      if (!submitted.has(id)) {
+        return {
+          ok: false,
+          error: "Falta algún movimiento en el envío. Recargá la página.",
+        };
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const line of data.lines) {
+        const e = await tx.expense.findFirst({
+          where: {
+            id: line.expenseId,
+            statementImportId: data.statementImportId,
+            card: { userId },
+            sourceType: { in: [...STATEMENT_IMPORT_EXPENSE_SOURCE_TYPES] },
+          },
+        });
+        if (!e) throw new Error("Movimiento inválido");
+        const isUsd = e.originalCurrency === "USD";
+        await tx.expense.update({
+          where: { id: e.id },
+          data: {
+            amount: line.amountArs,
+            ...(isUsd && line.originalAmountUsd != null && line.originalAmountUsd > 0
+              ? { originalAmount: line.originalAmountUsd }
+              : {}),
+          },
+        });
+      }
+    });
+
+    const refreshMonths = new Set<string>();
+    const addM = (m: number, y: number) => refreshMonths.add(`${y}-${m}`);
+    if (stmt.paymentDueDate) {
+      addM(stmt.paymentDueDate.getMonth() + 1, stmt.paymentDueDate.getFullYear());
+    }
+    const posted = await prisma.expense.findMany({
+      where: { statementImportId: data.statementImportId, card: { userId } },
+      select: { postedMonth: true, postedYear: true },
+    });
+    for (const p of posted) {
+      addM(p.postedMonth, p.postedYear);
+    }
+    for (const key of Array.from(refreshMonths)) {
+      const [y, m] = key.split("-").map(Number);
+      try {
+        await refreshAlerts(userId, m, y);
+      } catch (e) {
+        console.error("[updateImportedExpenseAmounts] refreshAlerts", e);
+      }
+    }
+
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath("/expenses");
+      revalidatePath("/reports");
+      revalidatePath("/imports");
+      revalidatePath("/budget");
+    } catch (revErr) {
+      console.error("[updateImportedExpenseAmounts] revalidatePath", revErr);
+    }
+
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: e.errors[0]?.message ?? "Dato inválido." };
+    }
+    console.error("[updateImportedExpenseAmounts]", e);
+    return { ok: false, error: e instanceof Error ? e.message : "No se pudo guardar." };
   }
 }

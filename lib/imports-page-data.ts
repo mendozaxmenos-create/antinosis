@@ -11,9 +11,23 @@ type ImportBase = Awaited<
   ReturnType<typeof prisma.statementImport.findMany<{ include: { card: true } }>>
 >[number];
 
+export type StatementImportPayableLine = {
+  id: string;
+  description: string | null;
+  merchant: string | null;
+  amount: number;
+  originalCurrency: string | null;
+  originalAmount: number | null;
+  transactionDate: Date | string;
+};
+
 export type StatementImportListRow = ImportBase & {
-  /** Suma ARS de movimientos del resumen que entran en “total a pagar” (misma regla que el panel). */
+  /** Suma en ARS (pesos nativos + equivalente ARS de consumos en USD). Igual que el panel “total a pagar”. */
   totalPayableArs: number;
+  payableArsNative: number;
+  payableUsdOriginal: number;
+  payableUsdAsArs: number;
+  payableLines: StatementImportPayableLine[];
 };
 
 export type ImportsPageData =
@@ -90,24 +104,77 @@ export async function loadImportsPageData(userId: string): Promise<ImportsPageDa
   let importsWithTotals: StatementImportListRow[] = imports.map((row) => ({
     ...row,
     totalPayableArs: 0,
+    payableArsNative: 0,
+    payableUsdOriginal: 0,
+    payableUsdAsArs: 0,
+    payableLines: [],
   }));
   const importIds = imports.map((i) => i.id);
   if (importIds.length > 0) {
     try {
-      const sums = await prisma.expense.groupBy({
-        by: ["statementImportId"],
+      const payableExpenses = await prisma.expense.findMany({
         where: {
           statementImportId: { in: importIds },
           card: { userId },
           sourceType: { in: [...STATEMENT_IMPORT_EXPENSE_SOURCE_TYPES] },
         },
-        _sum: { amount: true },
+        select: {
+          id: true,
+          statementImportId: true,
+          description: true,
+          merchant: true,
+          amount: true,
+          originalCurrency: true,
+          originalAmount: true,
+          transactionDate: true,
+        },
+        orderBy: [{ transactionDate: "asc" }, { id: "asc" }],
       });
-      const byId = new Map(sums.map((s) => [s.statementImportId!, s._sum.amount ?? 0]));
-      importsWithTotals = imports.map((row) => ({
-        ...row,
-        totalPayableArs: byId.get(row.id) ?? 0,
-      }));
+
+      const linesByImport = new Map<string, StatementImportPayableLine[]>();
+      const aggByImport = new Map<
+        string,
+        { total: number; arsNative: number; usdOrig: number; usdAsArs: number }
+      >();
+
+      for (const e of payableExpenses) {
+        const sid = e.statementImportId!;
+        if (!linesByImport.has(sid)) {
+          linesByImport.set(sid, []);
+          aggByImport.set(sid, { total: 0, arsNative: 0, usdOrig: 0, usdAsArs: 0 });
+        }
+        linesByImport.get(sid)!.push({
+          id: e.id,
+          description: e.description,
+          merchant: e.merchant,
+          amount: e.amount,
+          originalCurrency: e.originalCurrency,
+          originalAmount: e.originalAmount,
+          transactionDate: e.transactionDate,
+        });
+        const agg = aggByImport.get(sid)!;
+        const isUsd = e.originalCurrency === "USD";
+        agg.total += e.amount;
+        if (isUsd) {
+          agg.usdAsArs += e.amount;
+          agg.usdOrig += e.originalAmount ?? 0;
+        } else {
+          agg.arsNative += e.amount;
+        }
+      }
+
+      importsWithTotals = imports.map((row) => {
+        const agg = aggByImport.get(row.id);
+        const lines = linesByImport.get(row.id) ?? [];
+        return {
+          ...row,
+          totalPayableArs: agg?.total ?? 0,
+          payableArsNative: agg?.arsNative ?? 0,
+          payableUsdOriginal: agg?.usdOrig ?? 0,
+          payableUsdAsArs: agg?.usdAsArs ?? 0,
+          payableLines: lines,
+        };
+      });
     } catch (e) {
       loadWarnings.push(warn("Totales por importación no disponibles.", e));
     }
