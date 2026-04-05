@@ -1,25 +1,32 @@
 # CardSpend
 
-Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a partir de **sueldo neto**, transferencias, **pagos de tarjeta con vencimiento en el mes** (según resúmenes importados), % de ahorro, seguimiento **en curso** (cargas manuales), **importación de capturas** (OCR en el navegador) al cargar un gasto, importación de **resúmenes CSV**, alertas por umbrales y vencimientos, informes e integraciones opcionales (**Google Calendar**, **Telegram**, **email**).
+Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a partir de **sueldo neto**, transferencias, **pagos de tarjeta con vencimiento en el mes** (según resúmenes importados), % de ahorro, seguimiento **en curso** (cargas manuales), **importación de capturas** (OCR en el navegador) al cargar un gasto, importación de **resúmenes CSV y PDF** (varios bancos), alertas por umbrales y vencimientos, informes e integraciones opcionales (**Google Calendar**, **Telegram**, **email**).
 
 > El paquete npm se llama `antinosis`; en la UI la app se muestra como **CardSpend**.
 
 ---
 
+## Documentación
+
+**README** y **BACKLOG.md** describen el estado del producto en el repo. Cuando agregues o cambies una feature, **actualizá ambos** en el mismo cambio (o justo después) para que sigan reflejando el código.
+
+---
+
 ## Tabla de contenidos
 
-1. [Funcionalidades](#funcionalidades)  
-2. [Stack](#stack)  
-3. [Requisitos e instalación](#requisitos-e-instalación)  
-4. [Variables de entorno](#variables-de-entorno)  
-5. [Scripts npm](#scripts-npm)  
-6. [Deploy (Vercel)](#deploy-vercel)  
-7. [Integraciones opcionales](#integraciones-opcionales)  
-8. [Flujo de uso](#flujo-de-uso)  
-9. [Reglas de negocio](#reglas-de-negocio)  
-10. [Estructura del repo](#estructura-del-repo)  
-11. [Backlog y pendientes](#backlog-y-pendientes)  
-12. [Licencia](#licencia)
+1. [Documentación](#documentación)  
+2. [Funcionalidades](#funcionalidades)  
+3. [Stack](#stack)  
+4. [Requisitos e instalación](#requisitos-e-instalación)  
+5. [Variables de entorno](#variables-de-entorno)  
+6. [Scripts npm](#scripts-npm)  
+7. [Deploy (Vercel)](#deploy-vercel)  
+8. [Integraciones opcionales](#integraciones-opcionales)  
+9. [Flujo de uso](#flujo-de-uso)  
+10. [Reglas de negocio](#reglas-de-negocio)  
+11. [Estructura del repo](#estructura-del-repo)  
+12. [Backlog y pendientes](#backlog-y-pendientes)  
+13. [Licencia](#licencia)
 
 ---
 
@@ -35,7 +42,7 @@ Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a 
 | **Tarjetas** (`/cards`) | Alta/edición/baja: banco, nombre, marca, últimos 4, días de cierre y vencimiento. |
 | **Gastos** (`/expenses`) | Movimientos **manuales** que cuentan para el límite del mes. |
 | **Informes** (`/reports`) | Comparativas mensuales, torta por categoría, gasto por tarjeta. |
-| **Resúmenes** (`/imports`) | Importación **CSV** o **PDF** del resumen: parser CSV (montos AR `$ 1.234,56`) y, para **Brubank**, extracción de texto del PDF y lectura de la tabla de movimientos (USD marcados como *(USD)*). Categorización heurística; alerta de **vencimiento de pago**; opcional evento en **Google Calendar**. |
+| **Resúmenes** (`/imports`) | Importación **CSV** o **PDF**: cadena en `lib/parse-statement-import.ts` — **CSV** genérico (montos AR; columnas USD o celdas `U$S`/`USD`); **PDF/texto** según formato detectado — **Brubank**, **BBVA Argentina** (Visa), **Banco Nación / Mastercard** (p. ej. Nativa). Consumos en **USD** se convierten a ARS con **cotización oficial BCRA** (`lib/bcra-usd-ars-rate.ts`). Movimientos importados quedan ligados al resumen (`Expense.statementImportId`); las vistas del **mes calendario** filtran por **fecha de operación** (`transactionDate`), no por el mes del formulario de import. Categorización heurística (`lib/statement-categorize.ts`); alerta de vencimiento; opcional **Google Calendar**; UI de error si falla la carga (`app/imports/error.tsx`). |
 
 ### Alertas y canales
 
@@ -65,7 +72,7 @@ Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a 
 - **Next.js 14** (App Router) · **TypeScript** · **Tailwind CSS**
 - **Prisma 5** + **PostgreSQL** (Neon u otro; recomendado para local y producción)
 - **shadcn/ui** (Radix) · **React Hook Form** · **Zod** · **Recharts** · **date-fns**
-- **tesseract.js** (OCR de comprobantes en el cliente al importar imagen en gastos)
+- **pdf-parse** (texto de PDFs de resumen) · **tesseract.js** (OCR de comprobantes en el cliente al cargar imagen en gastos)
 - **googleapis** (Calendar API, opcional)
 
 ---
@@ -151,7 +158,7 @@ Cada **push a `main`** suele disparar un deploy automático (`npm run sync:githu
 
 1. Google Cloud Console → habilitar **Calendar API** → credenciales **OAuth cliente Web**.  
 2. Redirect URI: `{NEXT_PUBLIC_APP_URL}/api/google-calendar/callback`.  
-3. En **Resúmenes**, conectar cuenta; al importar CSV se intenta crear un evento el día del vencimiento.
+3. En **Resúmenes**, conectar cuenta; al importar **CSV o PDF** se intenta crear un evento el día del vencimiento (si hay token y el env está bien configurado).
 
 ### Telegram (alertas)
 
@@ -174,20 +181,29 @@ Cada **push a `main`** suele disparar un deploy automático (`npm run sync:githu
 3. **`/cards`**: tarjetas con cierre y vencimiento.  
 4. **`/expenses`**: gastos manuales del mes.  
 5. **`/dashboard`**: visión general y KPIs.  
-6. **`/imports`**: CSV o PDF del resumen (incl. Brubank); opcional Calendar conectado.  
+6. **`/imports`**: CSV o PDF (Brubank, BBVA, Banco Nación MC, u otro banco vía CSV); opcional Calendar conectado.  
 7. **`/reports`**: histórico y comparativas.
 
 ### CSV (cabeceras reconocidas)
 
 - Fecha: `date`, `fecha`, …  
-- Monto: `amount`, `monto`, `importe`, … (formato argentino: `$ 1.234,56`)  
+- Monto en pesos: `amount`, `monto`, `importe`, `pesos`, `ars`, … (formato argentino: `$ 1.234,56`)  
+- Monto en USD (opcional): columnas tipo `usd`, `monto_usd`, `importe_usd`, `dolares`, … o celdas con texto `U$S` / `USD`  
 - Texto: `description`, `merchant`, `comercio`, …  
 
 Separador: coma o punto y coma.
 
-### PDF (Brubank)
+### PDF / texto de resumen (varios bancos)
 
-Subí el archivo **tal cual** lo exporta la app (resumen de tarjeta). Se extrae el texto del PDF y se interpretan las filas `Fecha / #Ref / Descripción / …` con montos en pesos o `U$S`. Los consumos en **dólares** se pasan a pesos con la **cotización oficial del USD publicada por el BCRA** para esa fecha (API pública `Cotizaciones?fecha=`; si el día no tiene dato, se usa el último día hábil anterior con cotización). Ese criterio es el estándar de referencia que suelen usar los bancos para tarjeta. No hace falta convertir a CSV.
+Se extrae texto con **pdf-parse** y se elige el parser según el contenido (`lib/parse-statement-import.ts`):
+
+| Formato | Detección / módulo |
+|--------|---------------------|
+| **Brubank** | Tabla tipo `Fecha` / `#Ref` / descripción / montos en pesos o `U$S` · `lib/parse-brubank-statement.ts` |
+| **BBVA Argentina** | Cabecera `FECHA DESCRIPCIÓN NRO. CUPÓN PESOS DÓLARES` · `lib/parse-bbva-statement.ts` |
+| **Banco Nación (Mastercard / Nativa, etc.)** | `DETALLE DEL MES` + cupón; líneas con o sin cuota `NN/NN` · `lib/parse-banco-nacion-mc-statement.ts` |
+
+Los consumos en **dólares** se pasan a pesos con la **cotización oficial del USD publicada por el BCRA** para esa fecha (`lib/bcra-usd-ars-rate.ts`; API `Cotizaciones?fecha=`; si el día no tiene dato, último día hábil anterior con cotización). No hace falta convertir a CSV si el PDF está soportado.
 
 ---
 
@@ -195,7 +211,8 @@ Subí el archivo **tal cual** lo exporta la app (resumen de tarjeta). Se extrae 
 
 - **Base para el % de ahorro y el límite en curso** = máx. 0, **sueldo neto − Soledad − total a pagar por resúmenes con vencimiento en ese mes calendario** (totales por resumen importado según `StatementImport.paymentDueDate`). Sobre esa base se aplica el **% de ahorro**; el **límite** es el resto salvo **tope manual** (ver `lib/calculations.ts` y `services/statementPaymentService.ts`).
 - Solo gastos **manuales** cuentan para el límite y umbrales (`lib/expense-scope.ts`).
-- Movimientos **importados desde CSV** no restan del tope mensual (sirven para registro, informes, cálculo de “qué pagar este mes” y calendario).
+- Movimientos **importados** (CSV/PDF) no restan del tope mensual (sirven para registro, informes, cálculo de “qué pagar este mes” y calendario).
+- **Mes en dashboard / gastos / presupuesto**: se agrupa por **fecha de operación** (`transactionDate`) dentro del mes calendario (`lib/month-transaction-filter.ts`), para no mezclar consumos de otros meses que vienen en un resumen vencido.
 
 ---
 
@@ -205,8 +222,8 @@ Subí el archivo **tal cual** lo exporta la app (resumen de tarjeta). Se extrae 
 app/                 # Rutas Next (dashboard, settings, setup, imports, API OAuth…)
 components/          # UI, formularios, gráficos, layout
 db/prisma/           # schema.prisma, seed, wipe-all-data.ts
-lib/                 # Prisma client, cálculos, parsers CSV, OCR de comprobantes (`parse-receipt-ocr-text`), Google Calendar, notificaciones
-services/            # Presupuesto, gastos, alertas, importación, pagos por vencimiento (`statementPaymentService`)
+lib/                 # Prisma client, cálculos, parsers (CSV, import unificado, Brubank/BBVA/Banco Nación), fechas DD-Mmm-YY, BCRA USD, OCR comprobantes, Calendar, notificaciones
+services/            # Presupuesto, gastos, alertas, importación de resúmenes, pagos por vencimiento
 BACKLOG.md           # Backlog detallado MVP (pendientes y deuda)
 ```
 
@@ -218,12 +235,12 @@ El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 
 | Prioridad | Temas principales |
 |-----------|-------------------|
-| **P0** | Proteger acceso (auth o contraseña en env), variables bien configuradas en Vercel, onboarding guiado tras setup, idioma/moneda unificados (ej. ARS). |
-| **P1** | Mejoras CSV (plantilla, validación, bancos), categorías editables en UI, PWA, pull-to-refresh opcional, migraciones Prisma formales. |
-| **QA** | Validar import + evento en Google Calendar en tu entorno. |
+| **P0** | Proteger acceso (auth o contraseña en env), variables en Vercel, onboarding guiado tras setup, idioma/moneda unificados (ej. ARS). |
+| **P1** | Cuotas y seguimiento mensual; bonificaciones/reintegros + KPI; millas/puntos + KPI; **Google Calendar al importar** (cerrar flujo: duplicados, errores visibles); plantilla/validación CSV; categorías editables en UI; PWA; pull-to-refresh; migraciones Prisma formales. |
+| **QA** | Validar import CSV/PDF + evento en Google Calendar en tu entorno. |
 | **P2** | Tests (incl. parsers), observabilidad, multi-usuario real, export CSV/Excel, mejoras OCR/plantillas. |
 
-**Deuda conocida:** sin login multi-usuario, i18n mixta, moneda fija en UI, sin import PDF de resumen, WhatsApp no integrado.
+**Deuda conocida:** sin login multi-usuario, i18n mixta, moneda fija en UI (`formatCurrency`), WhatsApp no integrado; parsers PDF para **más** bancos = ampliar según necesidad.
 
 ---
 

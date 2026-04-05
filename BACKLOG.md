@@ -4,6 +4,8 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 **Última actualización:** abril 2026.
 
+**Mantenimiento:** cada vez que cambies comportamiento de producto o parsers, **actualizá en el mismo PR** las secciones *Estado actual* y *Brechas* de este archivo y el **[README](./README.md)** (tabla de funcionalidades, CSV/PDF, reglas). Así la documentación no queda desactualizada.
+
 ---
 
 ## Alcance del MVP (propuesta)
@@ -23,7 +25,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 |------|-------------|
 | **Stack** | Next.js 14 (App Router), Prisma 5, PostgreSQL (Neon), deploy Vercel |
 | **Build** | `prisma generate && next build` — **sin** `db push` en Vercel (esquema se aplica con `npx prisma db push` desde tu PC contra Neon) |
-| **Esquema** | Usuario (incl. preferencias de alerta: canal, email, Telegram chat id), tarjetas, categorías, gastos, `MonthlyBudgetConfig` (sueldo neto, Soledad, % ahorro, tope manual, umbrales), importaciones, conciliación, `AlertEvent` |
+| **Esquema** | Usuario (alertas: canal, email, Telegram; OAuth Google Calendar), tarjetas, categorías, gastos (incl. `statementImportId` opcional hacia `StatementImport`), `MonthlyBudgetConfig`, `StatementImport` (vencimiento, evento Calendar), conciliación, `AlertEvent` |
 | **Seed** | Solo categorías (`npm run db:seed`); sin datos de demo |
 | **Setup** | `/setup` primer usuario; `db:wipe` / `db:wipe:production` limpia datos de usuario |
 | **Git** | `npm run sync:github` — add, commit `chore: sync`, push `main` si hay cambios |
@@ -34,7 +36,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 |--------|----------------|
 | **Dashboard** | KPIs: neto, Soledad, **pagos tarjeta con vencimiento en el mes** (suma de resúmenes importados), **base para ahorro**, % ahorro, monto ahorro, límite en curso, gasto manual, importado del mes contable, saldo vs límite, histórico ingresos; gauge; categorías/tarjeta; alertas; insights |
 | **Configuración** (`/settings`) | Mes/año, sueldo neto, efectivo a Soledad, % ahorro (sobre base ya descontados vencimientos del mes), tope manual, umbrales; **vista previa** con desglose incl. pagos de tarjeta del mes; evolución y tabla histórica (límite coherente con vencimientos); canal de alertas (app / Telegram / email); texto datos en la nube |
-| **Cards / Expenses / Reports / Imports** | CRUD y reportes; **alta de gasto con imagen + OCR** (`tesseract.js` en cliente, `lib/parse-receipt-ocr-text.ts`, heurística Mercado Pago); **import resúmenes CSV o PDF** (`pdf-parse` + `parse-brubank-statement.ts` para Brubank; CSV con `parseAmountAr` para montos AR); Google Calendar OAuth en imports |
+| **Cards / Expenses / Reports / Imports** | CRUD y reportes; **alta de gasto con imagen + OCR** (`tesseract.js`, `lib/parse-receipt-ocr-text.ts`); **import CSV o PDF**: `parse-statement-import.ts` encadena CSV genérico (USD/BCRA si aplica), PDF **Brubank**, **BBVA**, **Banco Nación MC** (`parse-brubank-statement`, `parse-bbva-statement`, `parse-banco-nacion-mc-statement`); vistas por mes usan **fecha de operación** (`transactionDate`, `lib/month-transaction-filter.ts`); **Google Calendar** OAuth en imports; **`/imports`** con `error.tsx` si falla la carga |
 | **Alertas** | Umbrales (gasto manual vs límite); vencimientos por import; mensajes en español en BD; **replicación** opcional a Telegram (`TELEGRAM_BOT_TOKEN` + chat id) o email (Resend: `RESEND_API_KEY`, `RESEND_FROM`) |
 | **Google Calendar** | OAuth, evento de vencimiento al importar si hay token |
 | **UI móvil** | Botón **Actualizar** en cabecera (recarga página; no depende del menú del navegador) |
@@ -49,6 +51,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 - Límite tarjeta = f(sueldo neto − Soledad − **pagos con vencimiento en el mes calendario**) y % ahorro sobre esa base, salvo tope manual (`lib/calculations.ts`, `services/statementPaymentService.ts`).
 - Solo gastos **manuales** cuentan para el tope (`lib/expense-scope.ts`).
+- Los **importados** se filtran por **fecha de operación** en el mes calendario (no por el mes elegido al subir el archivo).
 - Primer usuario = cuenta activa (`getDefaultUserId`).
 
 ### UI
@@ -71,7 +74,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | **Fidelización (millas / puntos)** | Sin tracking de programas tipo Millas BBVA, Aerolíneas Plus, etc.; pendiente modelo + KPI (ver P1). |
 | **Google Calendar y resúmenes** | Ya se intenta crear un evento de vencimiento al importar si hay OAuth; falta cerrar el comportamiento deseado de punta a punta (feedback, duplicados, fallos). Ver P1. |
 | **Tests** | Sin e2e/unit automatizados. |
-| **PDF** | Import de **PDF de resumen Brubank** implementado; otros bancos: CSV o ampliar parsers. |
+| **PDF** | Parsers de texto para **Brubank**, **BBVA**, **Banco Nación (MC/Nativa)**; otros bancos: **CSV** o nuevos parsers según formato. |
 | **Conciliación** | Modelo y datos; flujo “matched/unmatched” puede profundizarse. |
 | **WhatsApp** | No integrado (API Meta/Twilio); documentado en UI. |
 
@@ -105,7 +108,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 ### P2 — Calidad y escala
 
 14. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
-15. **Observabilidad** — Logs en imports/OAuth; página 500 amigable.
+15. **Observabilidad** — Logs en imports/OAuth; páginas de error amigables (p. ej. `/imports` tiene `error.tsx`); revisar resto de rutas.
 16. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
 17. **Export** — CSV/Excel de gastos por rango.
 18. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
@@ -120,4 +123,4 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ---
 
-*Actualizar este archivo al cerrar ítems o cambiar el alcance del MVP.*
+*Actualizar este archivo y el README al cerrar ítems, cambiar el alcance del MVP o modificar imports/parsers/reglas de negocio.*
