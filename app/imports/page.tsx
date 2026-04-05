@@ -1,10 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { prisma } from "@/lib/prisma";
 import { getDefaultUserId } from "@/lib/user";
-import { currentMonthYear } from "@/lib/helpers";
-import { safeFormatDate, safeFormatMonthYearLabel } from "@/lib/helpers";
+import { currentMonthYear, safeFormatDate, safeFormatMonthYearLabel } from "@/lib/helpers";
+import { loadImportsPageData } from "@/lib/imports-page-data";
 import { StatementUploadForm } from "@/components/forms/statement-upload-form";
 import { GoogleCalendarConnect } from "@/components/integrations/google-calendar-connect";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,31 +24,26 @@ export default async function ImportsPage({
   const calendarParam = typeof searchParams?.calendar === "string" ? searchParams.calendar : undefined;
   const googleConfigured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
-  const [user, imports, reconciliations, cards] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { googleRefreshToken: true, googleCalendarEmail: true },
-    }),
-    prisma.statementImport.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 25,
-      include: { card: true },
-    }),
-    prisma.reconciliationResult.findMany({
-      where: { userId },
-      orderBy: [{ year: "desc" }, { month: "desc" }],
-      take: 12,
-    }),
-    prisma.creditCard.findMany({
-      where: { userId, active: true },
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
-
-  if (!user) {
-    redirect("/setup");
+  const data = await loadImportsPageData(userId);
+  if (!data.ok) {
+    if (data.message === "Sesión inválida.") {
+      redirect("/setup");
+    }
+    return (
+      <div className="space-y-6">
+        <Alert variant="destructive">
+          <AlertTitle>No se pudo cargar Resúmenes</AlertTitle>
+          <AlertDescription>{data.message}</AlertDescription>
+        </Alert>
+        <p className="text-sm text-muted-foreground">
+          Si estás en producción, comprobá <code className="rounded bg-muted px-1">DATABASE_URL</code> en Vercel y que la
+          base tenga el esquema actual: <code className="rounded bg-muted px-1">npx prisma db push</code> contra Neon.
+        </p>
+      </div>
+    );
   }
+
+  const { user, imports, reconciliations, cards, loadWarnings } = data;
 
   return (
     <div className="space-y-8">
@@ -62,6 +56,23 @@ export default async function ImportsPage({
           en el cálculo del panel cuando importaste el resumen.
         </p>
       </div>
+
+      {loadWarnings.length > 0 ? (
+        <Alert variant="destructive">
+          <AlertTitle>Parte de los datos no se pudo cargar</AlertTitle>
+          <AlertDescription>
+            <ul className="list-inside list-disc text-sm">
+              {loadWarnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-sm">
+              Suele indicar que la base de datos en el servidor no tiene el mismo esquema que el código. Ejecutá{" "}
+              <code className="rounded bg-muted px-1">npx prisma db push</code> apuntando a la misma URL que usa Vercel.
+            </p>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {calendarParam === "connected" ? (
         <Alert>
