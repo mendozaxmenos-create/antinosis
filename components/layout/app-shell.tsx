@@ -26,6 +26,8 @@ const nav = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isSetup = pathname === "/setup";
+  const isLogin = pathname === "/login";
+  const minimalChrome = isSetup || isLogin;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -33,7 +35,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:px-6">
           <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
             <Link
-              href={isSetup ? "/setup" : "/dashboard"}
+              href={isSetup ? "/setup" : isLogin ? "/login" : "/dashboard"}
               className="flex min-w-0 items-center gap-2 font-semibold tracking-tight"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm">
@@ -41,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
               <span className="hidden sm:inline">CardSpend</span>
             </Link>
-            {!isSetup ? (
+            {!minimalChrome ? (
               <Button
                 type="button"
                 variant="outline"
@@ -56,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ) : null}
           </div>
           <nav className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1 sm:gap-2">
-            {!isSetup &&
+            {!minimalChrome &&
               nav.map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/");
               return (

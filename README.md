@@ -117,6 +117,7 @@ Copiá `.env.example` a `.env`. **No subas `.env`** al repositorio.
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google Calendar OAuth. Redirect: `{NEXT_PUBLIC_APP_URL}/api/google-calendar/callback` |
 | `TELEGRAM_BOT_TOKEN` | No | Bot creado con @BotFather; para alertas por Telegram. |
 | `RESEND_API_KEY` / `RESEND_FROM` | No | Envío de emails (dominio verificado en Resend). |
+| `APP_PASSWORD` | No | Si la definís, la app pide contraseña en `/login` (cookie segura; compatible con Google Calendar). Sin variable, el comportamiento es el de siempre (acceso abierto a quien tenga la URL). |
 
 ---
 
@@ -239,7 +240,7 @@ El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 
 | Prioridad | Temas principales |
 |-----------|-------------------|
-| **P0** | Proteger acceso (auth o contraseña en env), **contraseña y rol admin** para el dueño, **dashboard de operaciones** al salir al público (usuarios activos, modo prueba/trial, canon o ingreso mensual/MRR, etc.), **enlace “panel de administración” / modo admin** desde el dashboard del cliente; variables en Vercel; onboarding guiado; idioma/moneda (ej. ARS). |
+| **P0** | **Puerta `APP_PASSWORD`** (implementada: `/login` + cookie); auth por usuario / **admin** y **dashboard de operaciones** al salir al público; variables en Vercel; onboarding guiado; idioma/moneda (ej. ARS). |
 | **P1** | Cuotas y seguimiento mensual; bonificaciones/reintegros + KPI; millas/puntos + KPI; **adicionales de tarjeta** (alta/edición, detección en consumos importados, KPI en dashboard); **Google Calendar al importar** (cerrar flujo: duplicados, errores visibles); plantilla/validación CSV; categorías editables en UI; PWA; pull-to-refresh; migraciones Prisma formales. |
 | **QA** | Validar import CSV/PDF + evento en Google Calendar en tu entorno. |
 | **P2** | Tests (incl. parsers), observabilidad, multi-usuario real, export CSV/Excel, mejoras OCR/plantillas. |

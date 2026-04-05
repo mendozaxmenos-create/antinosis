@@ -23,7 +23,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Área | Qué incluye |
 |------|-------------|
-| **Stack** | Next.js 14 (App Router), Prisma 5, PostgreSQL (Neon), deploy Vercel |
+| **Stack** | Next.js 14 (App Router), Prisma 5, PostgreSQL (Neon), deploy Vercel; **middleware** opcional con `APP_PASSWORD` (`/login`, cookie) |
 | **Build** | `scripts/vercel-build.js`: en **Vercel** corre `prisma db push` + `generate` + `next build`; en local solo `generate` + `next build`. `DATABASE_URL` obligatoria en Vercel para el push. |
 | **Esquema** | Usuario (alertas: canal, email, Telegram; OAuth Google Calendar), tarjetas, categorías, gastos (incl. `statementImportId` opcional hacia `StatementImport`), `MonthlyBudgetConfig`, `SalaryBonus` (bonos de sueldo por mes/año), `StatementImport` (vencimiento, evento Calendar), conciliación, `AlertEvent` |
 | **Seed** | Solo categorías (`npm run db:seed`); sin datos de demo |
@@ -65,7 +65,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Tema | Detalle |
 |------|---------|
-| **Auth** | No hay login por usuario con roles; quien tenga la URL puede entrar (salvo capas extra en Vercel). Pendiente: contraseña por cuenta admin y modelo multi-usuario (ver P0). |
+| **Auth** | **Puerta opcional:** si `APP_PASSWORD` está definida, middleware + `/login` con cookie httpOnly (30 días); sin variable, acceso abierto. **Pendiente:** login por usuario, roles admin y Auth.js / Google (ver P0). |
 | **Admin / métricas de producto** | No existe **dashboard de operaciones** para el dueño de la app: usuarios activos, en **modo prueba** / trial, **canon o ingreso mensual** (suscripción), u otras métricas al salir al público. Sin **rol admin** ni acceso dedicado desde la UI del cliente (ver P0 ítems 5–7). |
 | **Single-tenant** | Un solo perfil vía `/setup`; no hay multi-cuenta. |
 | **i18n** | Mezcla ES/EN en algunas etiquetas o mensajes legacy. |
@@ -101,7 +101,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ### P0 — Seguridad y pulido esencial
 
-1. **Proteger el acceso** — Middleware + contraseña en env (`APP_PASSWORD`) o Auth.js / login con Google.
+1. **Proteger el acceso** — **Hecho (parcial):** `APP_PASSWORD` + `/login` + cookie (ver README). **Siguiente:** Auth.js / login con Google y/o contraseña **por usuario** (no solo puerta global).
 2. **Variables en Vercel** — `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, OAuth Google si aplica; si usás alertas: `TELEGRAM_BOT_TOKEN` y/o Resend; verificar dominio de callback OAuth.
 3. **Onboarding vacío** — Tras `/setup`, guiar: primera tarjeta + primera configuración de mes (banners o empty states en dashboard/cards).
 4. **Idioma y moneda** — Unificar copy en español (o inglés) y parametrizar moneda/locale para Argentina.
