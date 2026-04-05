@@ -13,6 +13,7 @@ async function main() {
   await prisma.expense.deleteMany();
   await prisma.alertThreshold.deleteMany();
   await prisma.monthlyBudgetConfig.deleteMany();
+  await prisma.salaryBonus.deleteMany();
   await prisma.statementImport.deleteMany();
   await prisma.reconciliationResult.deleteMany();
   await prisma.creditCard.deleteMany();

@@ -22,7 +22,7 @@ import { syncAlertsForMonth } from "@/services/alertService";
 import { getStatementPaymentsBreakdownForMonth } from "@/services/statementPaymentService";
 import { format } from "date-fns";
 import { Bell, CalendarClock, PiggyBank, Sparkles, TrendingUp, Wallet } from "lucide-react";
-import { explainBudgetComputation } from "@/lib/calculations";
+import { explainBudgetComputation, explainOverspendVersusSavings } from "@/lib/calculations";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,12 @@ export default async function DashboardPage({
     cardPaymentsDueInMonth,
   });
 
+  const overspendInfo = explainOverspendVersusSavings({
+    budgetLimit: budget,
+    spentManual: spent,
+    savingsAmountPlanned: breakdown.savingsAmount,
+  });
+
   const topCategory = categoryTotals[0]?.categoryName;
   const insights: string[] = [
     `El tope sale del sueldo neto de Configuración (${format(new Date(year, month - 1, 1), "MMMM")}), menos Soledad, menos el % de ahorro sobre eso. Los resúmenes de tarjeta no restan del CuantoQueda.`,
@@ -76,7 +82,12 @@ export default async function DashboardPage({
       : "Cargá gastos manuales para ver categorías.",
     remaining >= 0
       ? `Te quedan ${formatCurrency(remaining)} para seguir cargando manual.`
-      : `Superaste el tope en ${formatCurrency(Math.abs(remaining))} (solo gasto manual).`,
+      : overspendInfo.savingsPlanned > 0
+        ? `Exceso sobre el tope: ${formatCurrency(overspendInfo.overspend)}. Se descuenta del ahorro previsto (${formatCurrency(overspendInfo.absorbedFromSavings)}); ahorro efectivo restante: ${formatCurrency(overspendInfo.effectiveSavingsRemaining)}.` +
+          (overspendInfo.beyondSavings > 0
+            ? ` Además ${formatCurrency(overspendInfo.beyondSavings)} superan incluso ese colchón.`
+            : "")
+        : `Superaste el tope en ${formatCurrency(overspendInfo.overspend)}; con 0% ahorro previsto no hay colchón que absorba el exceso.`,
     spentImportedTotal > 0
       ? `Importado desde resúmenes en el mes (movimientos): ${formatCurrency(spentImportedTotal)} — informativo, no resta del tope.`
       : "Podés importar resúmenes para ver cuánto vence en tarjeta (referencia).",
@@ -157,6 +168,50 @@ export default async function DashboardPage({
           </CardContent>
         </Card>
 
+        {overspendInfo.overspend > 0 ? (
+          <Alert
+            variant={overspendInfo.beyondSavings > 0 ? "destructive" : "default"}
+            className={
+              overspendInfo.beyondSavings > 0
+                ? undefined
+                : "border-amber-600/50 bg-amber-500/5 dark:border-amber-500/40"
+            }
+          >
+            <AlertTitle>
+              {overspendInfo.savingsPlanned > 0
+                ? "Exceso imputado al ahorro previsto"
+                : "Exceso sobre el tope"}
+            </AlertTitle>
+            <AlertDescription className="space-y-2 text-sm leading-relaxed">
+              {overspendInfo.savingsPlanned > 0 ? (
+                <>
+                  <p>
+                    El gasto manual supera el tope en <strong>{formatCurrency(overspendInfo.overspend)}</strong>. Ese
+                    exceso se descuenta del <strong>porcentaje de ahorro</strong> previsto: el monto que separaste para
+                    ahorro era <strong>{formatCurrency(overspendInfo.savingsPlanned)}</strong>; de ahí se usan{" "}
+                    <strong>{formatCurrency(overspendInfo.absorbedFromSavings)}</strong> para cubrir el exceso.
+                  </p>
+                  <p>
+                    <strong>Ahorro efectivo restante:</strong> {formatCurrency(overspendInfo.effectiveSavingsRemaining)}.
+                  </p>
+                  {overspendInfo.beyondSavings > 0 ? (
+                    <p>
+                      El exceso supera el ahorro previsto: <strong>{formatCurrency(overspendInfo.beyondSavings)}</strong>{" "}
+                      quedan fuera de lo que la regla del mes podía absorber.
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p>
+                  Gastaste <strong>{formatCurrency(overspendInfo.overspend)}</strong> por encima del tope. Con{" "}
+                  <strong>0% de ahorro</strong> en la configuración no hay monto de “colchón” que absorba el exceso: todo
+                  queda como desvío sobre el tope.
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-muted">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -206,6 +261,14 @@ export default async function DashboardPage({
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.savingsAmount)}</p>
               <p className="text-xs text-muted-foreground">Descontado del tope</p>
+              {overspendInfo.overspend > 0 && breakdown.savingsAmount > 0 ? (
+                <p className="text-xs text-amber-800 dark:text-amber-300 mt-2 pt-2 border-t border-border/60">
+                  Tras absorber el exceso:{" "}
+                  <span className="font-medium tabular-nums">
+                    {formatCurrency(overspendInfo.effectiveSavingsRemaining)}
+                  </span>
+                </p>
+              ) : null}
             </CardContent>
           </Card>
           <Card className="border-primary/25 bg-primary/5">

@@ -37,7 +37,7 @@ Aplicación web para **controlar gasto con tarjeta de crédito**. El núcleo es 
 | Área | Qué incluye |
 |------|-------------|
 | **Primer uso** | Ruta `/setup`: creás el único perfil de la instalación (un usuario por base de datos). |
-| **Configuración** (`/settings`) | Por mes/año (`?month=&year=`): **sueldo neto** (estimable antes de cobrarlo), **Soledad**, **% de ahorro** sobre *(neto − Soledad)*, **tope manual** opcional, umbrales (60–100 %). Vista previa del **CuantoQueda**. Evolución y tabla histórica (el sueldo guardado por mes). |
+| **Configuración** (`/settings`) | Por mes/año (`?month=&year=`): **sueldo neto** (estimable antes de cobrarlo), **Soledad**, **% de ahorro** sobre *(neto − Soledad)*, **tope manual** opcional, umbrales (60–100 %). Vista previa del **CuantoQueda**. **Bonos de sueldo** (aguinaldo, extras): registro por mes con monto y nota; **evolución** con dos líneas (neto vs bonos del mes) y total en tooltip. Tabla histórica de presupuesto por mes. |
 | **CuantoQueda** (`/dashboard`) | Mismo selector de mes. Tarjeta principal con **saldo disponible** (tope − gasto manual); números del mes: sueldo, Soledad, base, % ahorro, tope, gasto manual; bloque **solo referencia** (total a pagar por resúmenes con vencimiento en el mes, movimientos importados del mes contable). Gauge, categorías/tarjeta, alertas, insights. |
 | **Tarjetas** (`/cards`) | Alta/edición/baja: banco, nombre, marca, últimos 4, días de cierre y vencimiento. |
 | **Gastos** (`/expenses`) | Movimientos **manuales** que restan del **CuantoQueda** del mes (`?month=&year=`). |
@@ -223,10 +223,11 @@ Los consumos en **dólares** se pasan a pesos con la **cotización oficial del U
 
 ```
 app/                 # Rutas Next (dashboard, settings, setup, imports, API OAuth…)
+actions/             # Server Actions (p. ej. bonos de sueldo)
 components/          # UI, formularios, gráficos, layout
 db/prisma/           # schema.prisma, seed, wipe-all-data.ts
 lib/                 # Prisma client, cálculos, parsers (CSV, import unificado, Brubank/BBVA/Banco Nación), fechas DD-Mmm-YY, BCRA USD, OCR comprobantes, Calendar, notificaciones
-services/            # Presupuesto, gastos, alertas, importación de resúmenes, pagos por vencimiento
+services/            # Presupuesto, gastos, alertas, bonos de sueldo, importación de resúmenes, pagos por vencimiento
 BACKLOG.md           # Backlog detallado MVP (pendientes y deuda)
 ```
 
@@ -243,7 +244,7 @@ El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 | **QA** | Validar import CSV/PDF + evento en Google Calendar en tu entorno. |
 | **P2** | Tests (incl. parsers), observabilidad, multi-usuario real, export CSV/Excel, mejoras OCR/plantillas. |
 
-**Deuda conocida:** sin login multi-usuario, i18n mixta, moneda fija en UI (`formatCurrency`), WhatsApp no integrado; parsers PDF para **más** bancos = ampliar según necesidad.
+**Deuda conocida:** sin login multi-usuario, i18n mixta, moneda fija en UI (`formatCurrency`), WhatsApp no integrado; parsers PDF para **más** bancos = ampliar según necesidad. Los **bonos de sueldo** figuran en Configuración y en la evolución; no entran aún en el tope del dashboard (ver BACKLOG).
 
 ---
 

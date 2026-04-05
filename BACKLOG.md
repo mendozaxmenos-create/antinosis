@@ -25,7 +25,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 |------|-------------|
 | **Stack** | Next.js 14 (App Router), Prisma 5, PostgreSQL (Neon), deploy Vercel |
 | **Build** | `scripts/vercel-build.js`: en **Vercel** corre `prisma db push` + `generate` + `next build`; en local solo `generate` + `next build`. `DATABASE_URL` obligatoria en Vercel para el push. |
-| **Esquema** | Usuario (alertas: canal, email, Telegram; OAuth Google Calendar), tarjetas, categorías, gastos (incl. `statementImportId` opcional hacia `StatementImport`), `MonthlyBudgetConfig`, `StatementImport` (vencimiento, evento Calendar), conciliación, `AlertEvent` |
+| **Esquema** | Usuario (alertas: canal, email, Telegram; OAuth Google Calendar), tarjetas, categorías, gastos (incl. `statementImportId` opcional hacia `StatementImport`), `MonthlyBudgetConfig`, `SalaryBonus` (bonos de sueldo por mes/año), `StatementImport` (vencimiento, evento Calendar), conciliación, `AlertEvent` |
 | **Seed** | Solo categorías (`npm run db:seed`); sin datos de demo |
 | **Setup** | `/setup` primer usuario; `db:wipe` / `db:wipe:production` limpia datos de usuario |
 | **Git** | `npm run sync:github` — add, commit `chore: sync`, push `main` si hay cambios |
@@ -35,7 +35,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | Módulo | Implementado |
 |--------|----------------|
 | **CuantoQueda** (`/dashboard`) | Selector de mes (`?month=&year=`). Tarjeta principal **saldo disponible** (tope − gasto manual); KPIs: neto, Soledad, base (neto−Soledad), % ahorro, ahorro estimado, tope, gasto manual; bloque **referencia** (total a pagar por resúmenes con vencimiento en el mes, importado del mes contable — **no restan del tope**); gauge; categorías/tarjeta; alertas; insights |
-| **Configuración** (`/settings`) | Mes/año, sueldo neto (manual, editable), Soledad, % ahorro sobre *(neto − Soledad)*, tope manual, umbrales; vista previa **sin** restar resúmenes del tope; total resúmenes del mes como referencia; evolución y tabla; alertas (app / Telegram / email) |
+| **Configuración** (`/settings`) | Mes/año, sueldo neto (manual, editable), Soledad, % ahorro sobre *(neto − Soledad)*, tope manual, umbrales; vista previa **sin** restar resúmenes del tope; total resúmenes del mes como referencia; **bonos de sueldo** (registro por mes con monto y nota opcional; suma por mes); **evolución del sueldo** con dos series (neto guardado vs bonos del mes) y tooltip con total; tabla histórica; alertas (app / Telegram / email) |
 | **Cards / Expenses / Reports / Imports** | CRUD y reportes; **alta de gasto con imagen + OCR** (`tesseract.js`, `lib/parse-receipt-ocr-text.ts`); **import CSV o PDF**: `parse-statement-import.ts` encadena CSV genérico (USD/BCRA si aplica), PDF **Brubank**, **BBVA**, **Banco Nación MC** (`parse-brubank-statement`, `parse-bbva-statement`, `parse-banco-nacion-mc-statement`); vistas por mes usan **fecha de operación** (`transactionDate`, `lib/month-transaction-filter.ts`); **Google Calendar** OAuth en imports; **`/imports`** con `error.tsx` si falla la carga |
 | **Alertas** | Umbrales (gasto manual vs límite); vencimientos por import; mensajes en español en BD; **replicación** opcional a Telegram (`TELEGRAM_BOT_TOKEN` + chat id) o email (Resend: `RESEND_API_KEY`, `RESEND_FROM`) |
 | **Google Calendar** | OAuth, evento de vencimiento al importar si hay token |
@@ -69,6 +69,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | **Single-tenant** | Un solo perfil vía `/setup`; no hay multi-cuenta. |
 | **i18n** | Mezcla ES/EN en algunas etiquetas o mensajes legacy. |
 | **Moneda** | `formatCurrency` orientado a USD; sin `NEXT_PUBLIC_CURRENCY` / ARS. |
+| **Bonos de sueldo vs CuantoQueda** | Los **bonos** registrados en Configuración suman en la **evolución** (neto + bonos por mes) y en la tabla de bonos; **no** modifican el tope de gasto manual ni los KPI principales del dashboard (solo el sueldo neto guardado). Opcional futuro: reflejar bonos en ingreso de referencia del mes en `/dashboard`. |
 | **Cuotas** | Sin seguimiento por cuota: hoy los movimientos en cuotas no se proyectan mes a mes (importe restante, N de cuota, vencimiento por mes). Ver pendiente P1. |
 | **Adicionales de tarjeta** | Sin datos de titulares adicionales en el alta/edición de tarjeta; el import no asocia consumos a un adicional; dashboard sin KPI por adicional (ver P1). |
 | **Bonificaciones / reintegros** | En resúmenes suelen aparecer como BONIF, promos o créditos; hoy el import puede ignorarlos. Pendiente: capturarlos y un KPI dedicado (ver P1). |
@@ -135,7 +136,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Listo | Pendiente destacado |
 |-------|----------------------|
-| Ingresos/límites con **vencimientos de tarjeta en el mes**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, **Calendar al importar resumen (cerrar flujo)**, **bonificaciones/reintegros y KPI**, **millas/puntos y KPI**, **adicionales de tarjeta (config + detección en consumos + KPI en dashboard)**, cuotas, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
+| Ingresos/límites con **vencimientos de tarjeta en el mes**, **bonos de sueldo + evolución neto/bonos en Configuración**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, **Calendar al importar resumen (cerrar flujo)**, **bonificaciones/reintegros en resúmenes (import) y KPI**, **millas/puntos y KPI**, **adicionales de tarjeta (config + detección en consumos + KPI en dashboard)**, cuotas, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
 
 ---
 

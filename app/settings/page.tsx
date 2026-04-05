@@ -1,12 +1,18 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SettingsBudgetForm } from "@/components/forms/settings-budget-form";
+import { SalaryBonusForm } from "@/components/forms/salary-bonus-form";
 import { IncomeEvolutionChart } from "@/components/charts/income-evolution-chart";
 import { parseMonthYearFromSearchParams } from "@/lib/parse-month-year-params";
 import { formatCurrency } from "@/lib/helpers";
 import { getDefaultUserId } from "@/lib/user";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateBudgetConfig, listBudgetHistory, sumRegisteredNetIncome } from "@/services/budgetService";
+import {
+  getIncomeEvolutionSeries,
+  listSalaryBonuses,
+  sumSalaryBonuses,
+} from "@/services/salaryBonusService";
 import { mapStatementPaymentsDueByCalendarMonth } from "@/services/statementPaymentService";
 import { AlertChannelForm } from "@/components/forms/alert-channel-form";
 import { CategoriesManager } from "@/components/forms/categories-manager";
@@ -25,7 +31,17 @@ export default async function SettingsPage({
 
   const { month, year } = parseMonthYearFromSearchParams(searchParams);
 
-  const [config, history, totalNet, userPrefs, paymentsByDueMonth, categoriesWithCount] = await Promise.all([
+  const [
+    config,
+    history,
+    totalNet,
+    userPrefs,
+    paymentsByDueMonth,
+    categoriesWithCount,
+    evolutionSeries,
+    salaryBonuses,
+    totalBonusSum,
+  ] = await Promise.all([
     getOrCreateBudgetConfig(userId, month, year),
     listBudgetHistory(userId, 200),
     sumRegisteredNetIncome(userId),
@@ -38,6 +54,9 @@ export default async function SettingsPage({
       orderBy: { name: "asc" },
       include: { _count: { select: { expenses: true } } },
     }),
+    getIncomeEvolutionSeries(userId),
+    listSalaryBonuses(userId),
+    sumSalaryBonuses(userId),
   ]);
 
   const cardPaymentsDueForSelectedMonth = paymentsByDueMonth.get(`${year}-${month}`) ?? 0;
@@ -51,15 +70,9 @@ export default async function SettingsPage({
     label: new Date(2000, i, 1).toLocaleString("es-AR", { month: "long" }),
   }));
 
-  const withIncome = history
-    .filter((h) => h.monthlyIncome != null && h.monthlyIncome > 0)
-    .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month));
-
-  const chartData = withIncome.map((h) => ({
-    key: `${h.year}-${h.month}`,
-    label: `${String(h.month).padStart(2, "0")}/${h.year}`,
-    income: h.monthlyIncome!,
-  }));
+  const monthsWithNetIncome = evolutionSeries.filter((p) => p.netIncome > 0).length;
+  const bonusRegLabel =
+    salaryBonuses.length === 1 ? "1 registro" : `${salaryBonuses.length} registros`;
 
   return (
     <div className="space-y-10">
@@ -149,16 +162,41 @@ export default async function SettingsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Evolución del sueldo neto</CardTitle>
+          <CardTitle>Bonos de sueldo</CardTitle>
           <CardDescription>
-            Cada punto es el <strong>sueldo neto guardado</strong> en la configuración de ese mes (el mismo que usás en
-            el límite). Podés estimarlo antes de cobrar y editarlo después; no se infiere desde los resúmenes.
+            Registrá aguinaldos, bonos anuales u otros ingresos extra por mes. Se suman por mes y se muestran en la
+            gráfica de evolución junto al sueldo neto guardado arriba.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SalaryBonusForm
+            key={`${month}-${year}`}
+            defaultMonth={month}
+            defaultYear={year}
+            monthLabels={monthLabels}
+            initialBonuses={salaryBonuses.map((b) => ({
+              id: b.id,
+              month: b.month,
+              year: b.year,
+              amount: b.amount,
+              label: b.label,
+            }))}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Evolución del sueldo</CardTitle>
+          <CardDescription>
+            Una línea es el <strong>sueldo neto</strong> guardado por mes (el mismo que usás para el límite); la otra es
+            la <strong>suma de bonos</strong> de ese mes. En el tooltip ves el total (neto + bonos del mes).
           </CardDescription>
         </CardHeader>
         <CardContent>
           <IncomeEvolutionChart
-            data={chartData}
-            totalLabel={`Suma de sueldos netos registrados: ${formatCurrency(totalNet)} (${withIncome.length} meses con dato)`}
+            data={evolutionSeries}
+            totalLabel={`Suma sueldos netos: ${formatCurrency(totalNet)} (${monthsWithNetIncome} meses con neto) · Bonos acumulados: ${formatCurrency(totalBonusSum)} (${bonusRegLabel})`}
           />
         </CardContent>
       </Card>

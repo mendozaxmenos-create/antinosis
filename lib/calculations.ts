@@ -54,6 +54,35 @@ export function calculateMonthlyLimit(input: BudgetComputationInput): number {
   return explainBudgetComputation(input).finalLimit;
 }
 
+/** Cuando el gasto manual supera el tope, el exceso se interpreta como consumo del monto previsto para ahorro. */
+export type OverspendSavingsBreakdown = {
+  overspend: number;
+  savingsPlanned: number;
+  absorbedFromSavings: number;
+  effectiveSavingsRemaining: number;
+  /** Exceso que ya no puede cubrirse con el ahorro previsto */
+  beyondSavings: number;
+};
+
+export function explainOverspendVersusSavings(input: {
+  budgetLimit: number;
+  spentManual: number;
+  savingsAmountPlanned: number;
+}): OverspendSavingsBreakdown {
+  const overspend = Math.max(0, input.spentManual - input.budgetLimit);
+  const savingsPlanned = Math.max(0, input.savingsAmountPlanned);
+  const absorbedFromSavings = overspend > 0 ? Math.min(overspend, savingsPlanned) : 0;
+  const effectiveSavingsRemaining = Math.max(0, savingsPlanned - absorbedFromSavings);
+  const beyondSavings = Math.max(0, overspend - savingsPlanned);
+  return {
+    overspend,
+    savingsPlanned,
+    absorbedFromSavings,
+    effectiveSavingsRemaining,
+    beyondSavings,
+  };
+}
+
 export function calculateTotalSpent(expenses: Pick<Expense, "amount">[]): number {
   return expenses.reduce((sum, e) => sum + e.amount, 0);
 }

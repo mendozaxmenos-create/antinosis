@@ -2,6 +2,7 @@
 
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -9,13 +10,22 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { IncomeEvolutionPoint } from "@/lib/income-evolution-types";
 import { formatCurrency } from "@/lib/helpers";
 
-export type IncomePoint = { key: string; label: string; income: number };
-
-export function IncomeEvolutionChart({ data, totalLabel }: { data: IncomePoint[]; totalLabel: string }) {
+export function IncomeEvolutionChart({
+  data,
+  totalLabel,
+}: {
+  data: IncomeEvolutionPoint[];
+  totalLabel: string;
+}) {
   if (data.length === 0) {
-    return <p className="text-sm text-muted-foreground">Cargá sueldos netos por mes para ver la evolución.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        Cargá sueldos netos por mes o registrá bonos para ver la evolución.
+      </p>
+    );
   }
 
   return (
@@ -31,10 +41,43 @@ export function IncomeEvolutionChart({ data, totalLabel }: { data: IncomePoint[]
             tickFormatter={(v) => formatCurrency(Number(v))}
           />
           <Tooltip
-            formatter={(value: number) => [formatCurrency(value), "Sueldo neto"]}
-            labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ""}
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              const row = payload[0]?.payload as IncomeEvolutionPoint | undefined;
+              if (!row) return null;
+              return (
+                <div className="rounded-md border bg-background px-3 py-2 text-sm shadow-md">
+                  <p className="font-medium">{label}</p>
+                  <p className="text-muted-foreground">
+                    Sueldo neto: <span className="text-foreground">{formatCurrency(row.netIncome)}</span>
+                  </p>
+                  <p className="text-muted-foreground">
+                    Bonos (mes): <span className="text-foreground">{formatCurrency(row.bonus)}</span>
+                  </p>
+                  <p className="mt-1 border-t pt-1 font-medium text-foreground">
+                    Total: {formatCurrency(row.total)}
+                  </p>
+                </div>
+              );
+            }}
           />
-          <Line type="monotone" dataKey="income" stroke="hsl(var(--primary))" strokeWidth={2} dot />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Line
+            type="monotone"
+            dataKey="netIncome"
+            name="Sueldo neto"
+            stroke="hsl(var(--primary))"
+            strokeWidth={2}
+            dot
+          />
+          <Line
+            type="monotone"
+            dataKey="bonus"
+            name="Bonos (suma del mes)"
+            stroke="hsl(var(--chart-2))"
+            strokeWidth={2}
+            dot
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>

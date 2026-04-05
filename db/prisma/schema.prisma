@@ -23,6 +23,21 @@ model User {
   alertEvents            AlertEvent[]
   statementImports       StatementImport[]
   reconciliationResults  ReconciliationResult[]
+  salaryBonuses          SalaryBonus[]
+}
+
+model SalaryBonus {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Mes calendario al que imputás el bono (1–12)
+  month     Int
+  year      Int
+  amount    Float
+  label     String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, year, month])
 }
 
 model MonthlyBudgetConfig {
