@@ -99,3 +99,64 @@ export async function createPaymentDueCalendarEvent(input: {
     return null;
   }
 }
+
+export async function deleteCalendarEvent(refreshToken: string, eventId: string): Promise<boolean> {
+  const oauth2 = getOAuthClient();
+  oauth2.setCredentials({ refresh_token: refreshToken });
+
+  const cal = google.calendar({ version: "v3", auth: oauth2 });
+  try {
+    await cal.events.delete({ calendarId: "primary", eventId });
+    return true;
+  } catch (e) {
+    console.error("[google-calendar] delete event failed", e);
+    return false;
+  }
+}
+
+export async function updatePaymentDueCalendarEvent(input: {
+  refreshToken: string;
+  eventId: string;
+  /** Día del vencimiento (evento de día completo) */
+  dueDate: Date;
+  summary?: string;
+  description?: string;
+  /** IANA, ej. America/Argentina/Buenos_Aires */
+  timeZone?: string;
+}): Promise<boolean> {
+  const oauth2 = getOAuthClient();
+  oauth2.setCredentials({ refresh_token: input.refreshToken });
+
+  const cal = google.calendar({ version: "v3", auth: oauth2 });
+  const tz = input.timeZone ?? "America/Argentina/Buenos_Aires";
+
+  const start = new Date(input.dueDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  const requestBody: calendar_v3.Schema$Event = {
+    ...(input.summary != null ? { summary: input.summary } : {}),
+    ...(input.description != null ? { description: input.description } : {}),
+    start: {
+      date: start.toISOString().slice(0, 10),
+      timeZone: tz,
+    },
+    end: {
+      date: end.toISOString().slice(0, 10),
+      timeZone: tz,
+    },
+  };
+
+  try {
+    await cal.events.patch({
+      calendarId: "primary",
+      eventId: input.eventId,
+      requestBody,
+    });
+    return true;
+  } catch (e) {
+    console.error("[google-calendar] patch event failed", e);
+    return false;
+  }
+}

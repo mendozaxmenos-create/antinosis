@@ -2,11 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getDefaultUserId } from "@/lib/user";
-import { currentMonthYear, safeFormatDate, safeFormatMonthYearLabel } from "@/lib/helpers";
+import { currentMonthYear, formatArs, safeFormatDate, safeFormatMonthYearLabel } from "@/lib/helpers";
 import { loadImportsPageData } from "@/lib/imports-page-data";
 import { ManualStatementForm } from "@/components/forms/manual-statement-form";
 import { StatementUploadForm } from "@/components/forms/statement-upload-form";
 import { GoogleCalendarConnect } from "@/components/integrations/google-calendar-connect";
+import { StatementImportRowActions } from "@/components/imports/statement-import-row-actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { redirect } from "next/navigation";
 
@@ -152,10 +153,12 @@ export default async function ImportsPage({
                   <TableHead>Banco</TableHead>
                   <TableHead>Archivo</TableHead>
                   <TableHead>Período</TableHead>
+                  <TableHead className="text-right">Total a pagar</TableHead>
                   <TableHead>Vencimiento pago</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Google Cal.</TableHead>
                   <TableHead>Creado</TableHead>
+                  <TableHead className="text-right w-[120px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -166,6 +169,7 @@ export default async function ImportsPage({
                     <TableCell>
                       {safeFormatMonthYearLabel(row.importMonth, row.importYear, "MMM yyyy")}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums text-sm">{formatArs(row.totalPayableArs)}</TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
                       {safeFormatDate(row.paymentDueDate, "d MMM yyyy")}
                     </TableCell>
@@ -181,6 +185,9 @@ export default async function ImportsPage({
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
                       {safeFormatDate(row.createdAt, "d MMM yyyy")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <StatementImportRowActions row={row} />
                     </TableCell>
                   </TableRow>
                 ))}

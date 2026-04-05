@@ -1,7 +1,8 @@
 import { endOfMonth, startOfMonth } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { STATEMENT_IMPORT_EXPENSE_SOURCE_TYPES } from "@/lib/statement-import-expense-sources";
 
-const IMPORT_SOURCES = ["imported_file", "imported_pdf", "imported_manual"] as const;
+const IMPORT_SOURCES = STATEMENT_IMPORT_EXPENSE_SOURCE_TYPES;
 
 /**
  * Suma los importes de los resúmenes importados cuyo vencimiento de pago cae en el mes calendario dado.

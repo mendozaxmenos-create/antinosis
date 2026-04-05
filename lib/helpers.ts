@@ -31,6 +31,14 @@ export function formatCurrency(value: number, currency = "USD"): string {
   }).format(value);
 }
 
+export function formatArs(value: number): string {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export function formatMonthYear(month: number, year: number): string {
   const d = new Date(year, month - 1, 1);
   return format(d, "MMMM yyyy");

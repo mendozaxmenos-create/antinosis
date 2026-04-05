@@ -1,20 +1,26 @@
 import { prisma } from "@/lib/prisma";
 import type { CreditCard, ReconciliationResult } from "@prisma/client";
+import { STATEMENT_IMPORT_EXPENSE_SOURCE_TYPES } from "@/lib/statement-import-expense-sources";
 
 type UserCal = {
   googleRefreshToken: string | null;
   googleCalendarEmail: string | null;
 };
 
+type ImportBase = Awaited<
+  ReturnType<typeof prisma.statementImport.findMany<{ include: { card: true } }>>
+>[number];
+
+export type StatementImportListRow = ImportBase & {
+  /** Suma ARS de movimientos del resumen que entran en “total a pagar” (misma regla que el panel). */
+  totalPayableArs: number;
+};
+
 export type ImportsPageData =
   | {
       ok: true;
       user: UserCal;
-      imports: Awaited<
-        ReturnType<
-          typeof prisma.statementImport.findMany<{ include: { card: true } }>
-        >
-      >;
+      imports: StatementImportListRow[];
       reconciliations: ReconciliationResult[];
       cards: CreditCard[];
       loadWarnings: string[];
@@ -81,10 +87,36 @@ export async function loadImportsPageData(userId: string): Promise<ImportsPageDa
       ? settled[3].value
       : (loadWarnings.push(warn("Tarjetas no disponibles.", settled[3].reason)), []);
 
+  let importsWithTotals: StatementImportListRow[] = imports.map((row) => ({
+    ...row,
+    totalPayableArs: 0,
+  }));
+  const importIds = imports.map((i) => i.id);
+  if (importIds.length > 0) {
+    try {
+      const sums = await prisma.expense.groupBy({
+        by: ["statementImportId"],
+        where: {
+          statementImportId: { in: importIds },
+          card: { userId },
+          sourceType: { in: [...STATEMENT_IMPORT_EXPENSE_SOURCE_TYPES] },
+        },
+        _sum: { amount: true },
+      });
+      const byId = new Map(sums.map((s) => [s.statementImportId!, s._sum.amount ?? 0]));
+      importsWithTotals = imports.map((row) => ({
+        ...row,
+        totalPayableArs: byId.get(row.id) ?? 0,
+      }));
+    } catch (e) {
+      loadWarnings.push(warn("Totales por importación no disponibles.", e));
+    }
+  }
+
   return {
     ok: true,
     user: u.value,
-    imports,
+    imports: importsWithTotals,
     reconciliations,
     cards,
     loadWarnings,

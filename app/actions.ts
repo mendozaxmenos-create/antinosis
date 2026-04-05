@@ -11,6 +11,8 @@ import { parseStatementFromText } from "@/lib/parse-statement-import";
 import { installPdfJsNodePolyfills } from "@/lib/pdf-node-polyfills";
 import { getPdfjsLegacyWorkerSrc } from "@/lib/pdf-worker-path";
 import { importManualStatement, importStatementRows } from "@/services/statementImportService";
+import { computePaymentDueDate } from "@/lib/payment-due-date";
+import { deleteCalendarEvent, updatePaymentDueCalendarEvent } from "@/lib/google-calendar";
 
 /** Import dinámico: evita cargar pdfjs-dist al evaluar este módulo (GET /imports). Polyfills antes de pdf-parse (DOMMatrix en Node). */
 async function statementFileToText(file: File): Promise<string> {
@@ -569,5 +571,197 @@ export async function deleteCategoryAction(
       return { ok: false, error: e.errors[0]?.message ?? "Dato inválido." };
     }
     throw e;
+  }
+}
+
+function formatDueMessageLine(d: Date): string {
+  return d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+const updateStatementImportMetaSchema = z.object({
+  statementImportId: z.string().min(1),
+  importMonth: z.coerce.number().int().min(1).max(12),
+  importYear: z.coerce.number().int().min(2000).max(2100),
+});
+
+export async function updateStatementImportMetaAction(
+  input: unknown,
+): Promise<{ ok: true; paymentDueDate: string } | { ok: false; error: string }> {
+  const userId = await getDefaultUserId();
+  if (!userId) return { ok: false, error: "Sesión inválida." };
+  try {
+    const data = updateStatementImportMetaSchema.parse(input);
+
+    const existing = await prisma.statementImport.findFirst({
+      where: { id: data.statementImportId, userId },
+      include: { card: true },
+    });
+    if (!existing) return { ok: false, error: "Importación no encontrada." };
+    if (!existing.card) {
+      return { ok: false, error: "No hay tarjeta asociada; no se puede recalcular el vencimiento." };
+    }
+
+    const card = existing.card;
+    const oldImportMonth = existing.importMonth;
+    const oldImportYear = existing.importYear;
+    const oldPaymentDue = existing.paymentDueDate;
+
+    const paymentDueDate = computePaymentDueDate(data.importYear, data.importMonth, card.dueDay);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.statementImport.update({
+        where: { id: existing.id },
+        data: {
+          importMonth: data.importMonth,
+          importYear: data.importYear,
+          paymentDueDate,
+        },
+      });
+
+      const dueMonth = paymentDueDate.getMonth() + 1;
+      const dueYear = paymentDueDate.getFullYear();
+      const msg = `Vencimiento de pago (${card.bank} ·••• ${card.last4}): ${formatDueMessageLine(paymentDueDate)}`;
+
+      await tx.alertEvent.updateMany({
+        where: { statementImportId: existing.id, alertKind: "payment_due" },
+        data: {
+          month: dueMonth,
+          year: dueYear,
+          message: msg,
+          dueDate: paymentDueDate,
+        },
+      });
+    });
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { googleRefreshToken: true },
+    });
+    if (user?.googleRefreshToken && existing.googleCalendarEventId) {
+      try {
+        await updatePaymentDueCalendarEvent({
+          refreshToken: user.googleRefreshToken,
+          eventId: existing.googleCalendarEventId,
+          dueDate: paymentDueDate,
+          summary: `Vencimiento tarjeta ${card.bank} ·••• ${card.last4}`,
+          description: `Resumen ${existing.fileName} (${data.importMonth}/${data.importYear}). Importado desde CardSpend.`,
+        });
+      } catch (e) {
+        console.error("[updateStatementImportMeta] Google Calendar", e);
+      }
+    }
+
+    const refreshMonths = new Set<string>();
+    const addM = (m: number, y: number) => refreshMonths.add(`${y}-${m}`);
+    addM(oldImportMonth, oldImportYear);
+    addM(data.importMonth, data.importYear);
+    if (oldPaymentDue) {
+      addM(oldPaymentDue.getMonth() + 1, oldPaymentDue.getFullYear());
+    }
+    addM(paymentDueDate.getMonth() + 1, paymentDueDate.getFullYear());
+
+    for (const key of Array.from(refreshMonths)) {
+      const [y, m] = key.split("-").map(Number);
+      try {
+        await refreshAlerts(userId, m, y);
+      } catch (e) {
+        console.error("[updateStatementImportMeta] refreshAlerts", e);
+      }
+    }
+
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath("/expenses");
+      revalidatePath("/reports");
+      revalidatePath("/imports");
+      revalidatePath("/budget");
+    } catch (revErr) {
+      console.error("[updateStatementImportMeta] revalidatePath", revErr);
+    }
+
+    return { ok: true, paymentDueDate: paymentDueDate.toISOString() };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: e.errors[0]?.message ?? "Dato inválido." };
+    }
+    console.error("[updateStatementImportMeta]", e);
+    return { ok: false, error: e instanceof Error ? e.message : "No se pudo actualizar." };
+  }
+}
+
+const deleteStatementImportSchema = z.object({ statementImportId: z.string().min(1) });
+
+export async function deleteStatementImportAction(
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const userId = await getDefaultUserId();
+  if (!userId) return { ok: false, error: "Sesión inválida." };
+  try {
+    const { statementImportId } = deleteStatementImportSchema.parse(input);
+
+    const existing = await prisma.statementImport.findFirst({
+      where: { id: statementImportId, userId },
+    });
+    if (!existing) return { ok: false, error: "Importación no encontrada." };
+
+    const oldImportMonth = existing.importMonth;
+    const oldImportYear = existing.importYear;
+    const oldPaymentDue = existing.paymentDueDate;
+    const eventId = existing.googleCalendarEventId;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.expense.deleteMany({
+        where: { statementImportId, card: { userId } },
+      });
+      await tx.alertEvent.deleteMany({
+        where: { statementImportId, userId },
+      });
+      await tx.statementImport.delete({ where: { id: statementImportId } });
+    });
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { googleRefreshToken: true },
+    });
+    if (user?.googleRefreshToken && eventId) {
+      try {
+        await deleteCalendarEvent(user.googleRefreshToken, eventId);
+      } catch (e) {
+        console.error("[deleteStatementImport] Google Calendar", e);
+      }
+    }
+
+    const refreshMonths = new Set<string>();
+    const addM = (m: number, y: number) => refreshMonths.add(`${y}-${m}`);
+    addM(oldImportMonth, oldImportYear);
+    if (oldPaymentDue) {
+      addM(oldPaymentDue.getMonth() + 1, oldPaymentDue.getFullYear());
+    }
+    for (const key of Array.from(refreshMonths)) {
+      const [y, m] = key.split("-").map(Number);
+      try {
+        await refreshAlerts(userId, m, y);
+      } catch (e) {
+        console.error("[deleteStatementImport] refreshAlerts", e);
+      }
+    }
+
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath("/expenses");
+      revalidatePath("/reports");
+      revalidatePath("/imports");
+      revalidatePath("/budget");
+    } catch (revErr) {
+      console.error("[deleteStatementImport] revalidatePath", revErr);
+    }
+
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: e.errors[0]?.message ?? "Dato inválido." };
+    }
+    console.error("[deleteStatementImport]", e);
+    return { ok: false, error: e instanceof Error ? e.message : "No se pudo eliminar." };
   }
 }
