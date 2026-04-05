@@ -1,6 +1,6 @@
 # CardSpend
 
-Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a partir de **sueldo neto**, transferencias, % de ahorro, seguimiento **en curso** (cargas manuales), importación de **resúmenes CSV**, alertas por umbrales y vencimientos, informes e integraciones opcionales (**Google Calendar**, **Telegram**, **email**).
+Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a partir de **sueldo neto**, transferencias, **pagos de tarjeta con vencimiento en el mes** (según resúmenes importados), % de ahorro, seguimiento **en curso** (cargas manuales), **importación de capturas** (OCR en el navegador) al cargar un gasto, importación de **resúmenes CSV**, alertas por umbrales y vencimientos, informes e integraciones opcionales (**Google Calendar**, **Telegram**, **email**).
 
 > El paquete npm se llama `antinosis`; en la UI la app se muestra como **CardSpend**.
 
@@ -48,6 +48,10 @@ Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a 
 
 - **Google Calendar**: OAuth; al importar un resumen se puede crear un evento de **día completo** en la fecha de vencimiento estimada (según la tarjeta).
 
+### UI móvil
+
+- En la **barra superior** (junto al logo) hay un botón **Actualizar** (icono circular) para **recargar la página** sin depender del menú del navegador (útil en el celular).
+
 ### Datos y scripts
 
 - **Seed** (`npm run db:seed`): solo **categorías** base; sin datos de demostración.
@@ -61,6 +65,7 @@ Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a 
 - **Next.js 14** (App Router) · **TypeScript** · **Tailwind CSS**
 - **Prisma 5** + **PostgreSQL** (Neon u otro; recomendado para local y producción)
 - **shadcn/ui** (Radix) · **React Hook Form** · **Zod** · **Recharts** · **date-fns**
+- **tesseract.js** (OCR de comprobantes en el cliente al importar imagen en gastos)
 - **googleapis** (Calendar API, opcional)
 
 ---
@@ -184,9 +189,9 @@ Separador: coma o punto y coma.
 
 ## Reglas de negocio
 
-- **Límite en tarjeta** = f(sueldo neto − Soledad) menos el % de ahorro sobre ese disponible, salvo **tope manual** (ver `lib/calculations.ts`).
+- **Base para el % de ahorro y el límite en curso** = máx. 0, **sueldo neto − Soledad − total a pagar por resúmenes con vencimiento en ese mes calendario** (totales por resumen importado según `StatementImport.paymentDueDate`). Sobre esa base se aplica el **% de ahorro**; el **límite** es el resto salvo **tope manual** (ver `lib/calculations.ts` y `services/statementPaymentService.ts`).
 - Solo gastos **manuales** cuentan para el límite y umbrales (`lib/expense-scope.ts`).
-- Movimientos **importados desde CSV** no restan del tope mensual (sirven para registro, informes y calendario).
+- Movimientos **importados desde CSV** no restan del tope mensual (sirven para registro, informes, cálculo de “qué pagar este mes” y calendario).
 
 ---
 
@@ -196,8 +201,8 @@ Separador: coma o punto y coma.
 app/                 # Rutas Next (dashboard, settings, setup, imports, API OAuth…)
 components/          # UI, formularios, gráficos, layout
 db/prisma/           # schema.prisma, seed, wipe-all-data.ts
-lib/                 # Prisma client, cálculos, parsers, Google Calendar, notificaciones
-services/            # Presupuesto, gastos, alertas, importación
+lib/                 # Prisma client, cálculos, parsers CSV, OCR de comprobantes (`parse-receipt-ocr-text`), Google Calendar, notificaciones
+services/            # Presupuesto, gastos, alertas, importación, pagos por vencimiento (`statementPaymentService`)
 BACKLOG.md           # Backlog detallado MVP (pendientes y deuda)
 ```
 
@@ -210,11 +215,11 @@ El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 | Prioridad | Temas principales |
 |-----------|-------------------|
 | **P0** | Proteger acceso (auth o contraseña en env), variables bien configuradas en Vercel, onboarding guiado tras setup, idioma/moneda unificados (ej. ARS). |
-| **P1** | Mejoras CSV (plantilla, validación, bancos), categorías editables en UI, PWA, migraciones Prisma formales. |
+| **P1** | Mejoras CSV (plantilla, validación, bancos), categorías editables en UI, PWA, pull-to-refresh opcional, migraciones Prisma formales. |
 | **QA** | Validar import + evento en Google Calendar en tu entorno. |
-| **P2** | Tests, observabilidad, multi-usuario real, export CSV/Excel. |
+| **P2** | Tests (incl. parsers), observabilidad, multi-usuario real, export CSV/Excel, mejoras OCR/plantillas. |
 
-**Deuda conocida:** sin login multi-usuario, i18n mixta, moneda fija en UI, sin import PDF, WhatsApp no integrado.
+**Deuda conocida:** sin login multi-usuario, i18n mixta, moneda fija en UI, sin import PDF de resumen, WhatsApp no integrado.
 
 ---
 

@@ -32,11 +32,12 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Módulo | Implementado |
 |--------|----------------|
-| **Dashboard** | KPIs (neto, Soledad, ahorro, límite, gastos, importado, histórico ingresos), gauge, categorías/tarjeta, alertas, insights |
-| **Configuración** (`/settings`) | Mes/año, sueldo neto, efectivo a Soledad, % ahorro, tope manual, umbrales; evolución y tabla histórica de ingresos; canal de alertas (app / Telegram / email); texto datos en la nube |
-| **Cards / Expenses / Reports / Imports** | CRUD y reportes como antes; import CSV; Google Calendar OAuth en imports |
+| **Dashboard** | KPIs: neto, Soledad, **pagos tarjeta con vencimiento en el mes** (suma de resúmenes importados), **base para ahorro**, % ahorro, monto ahorro, límite en curso, gasto manual, importado del mes contable, saldo vs límite, histórico ingresos; gauge; categorías/tarjeta; alertas; insights |
+| **Configuración** (`/settings`) | Mes/año, sueldo neto, efectivo a Soledad, % ahorro (sobre base ya descontados vencimientos del mes), tope manual, umbrales; **vista previa** con desglose incl. pagos de tarjeta del mes; evolución y tabla histórica (límite coherente con vencimientos); canal de alertas (app / Telegram / email); texto datos en la nube |
+| **Cards / Expenses / Reports / Imports** | CRUD y reportes; **alta de gasto con imagen + OCR** (`tesseract.js` en cliente, `lib/parse-receipt-ocr-text.ts`, heurística Mercado Pago: “Para”, fechas en español, montos AR); import CSV; Google Calendar OAuth en imports |
 | **Alertas** | Umbrales (gasto manual vs límite); vencimientos por import; mensajes en español en BD; **replicación** opcional a Telegram (`TELEGRAM_BOT_TOKEN` + chat id) o email (Resend: `RESEND_API_KEY`, `RESEND_FROM`) |
 | **Google Calendar** | OAuth, evento de vencimiento al importar si hay token |
+| **UI móvil** | Botón **Actualizar** en cabecera (recarga página; no depende del menú del navegador) |
 
 ### Telegram (alcance claro)
 
@@ -46,13 +47,13 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ### Reglas de negocio
 
-- Límite tarjeta = f(sueldo neto − Soledad) y % ahorro, salvo tope manual (`lib/calculations.ts`).
+- Límite tarjeta = f(sueldo neto − Soledad − **pagos con vencimiento en el mes calendario**) y % ahorro sobre esa base, salvo tope manual (`lib/calculations.ts`, `services/statementPaymentService.ts`).
 - Solo gastos **manuales** cuentan para el tope (`lib/expense-scope.ts`).
 - Primer usuario = cuenta activa (`getDefaultUserId`).
 
 ### UI
 
-- Navegación: **Configuración** (antes Budget), Dashboard, Cards, Expenses, Reports, Resúmenes.
+- Navegación: **Configuración**, Dashboard, Cards, Expenses, Reports, Resúmenes; botón recargar junto al logo.
 - shadcn + Recharts.
 
 ---
@@ -85,8 +86,9 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 5. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
 6. **Categorías** — CRUD en UI (hoy vienen del seed).
-7. **PWA** — `manifest.json`, iconos, theme-color para móvil.
-8. **Prisma Migrate** — `migrate deploy` en release o documentación estricta de `db push` manual.
+7. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
+8. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
+9. **Prisma Migrate** — `migrate deploy` en release o documentación estricta de `db push` manual.
 
 ### QA / validación manual (pendiente de confirmar en tu entorno)
 
@@ -94,10 +96,11 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ### P2 — Calidad y escala
 
-9. **Tests** — Cálculos, parser CSV, actions críticas.
-10. **Observabilidad** — Logs en imports/OAuth; página 500 amigable.
-11. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
-12. **Export** — CSV/Excel de gastos por rango.
+10. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
+11. **Observabilidad** — Logs en imports/OAuth; página 500 amigable.
+12. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
+13. **Export** — CSV/Excel de gastos por rango.
+14. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
 
 ---
 
@@ -105,7 +108,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Listo | Pendiente destacado |
 |-------|----------------------|
-| Ingresos/límites, KPIs, setup, alertas in-app + Telegram/email, CSV, Calendar opcional, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, categorías editables, tests, migraciones formales |
+| Ingresos/límites con **vencimientos de tarjeta en el mes**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
 
 ---
 

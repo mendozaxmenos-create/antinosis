@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, LayoutDashboard, PieChart, Receipt, Settings, Upload } from "lucide-react";
+import {
+  CreditCard,
+  LayoutDashboard,
+  PieChart,
+  Receipt,
+  RefreshCw,
+  Settings,
+  Upload,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -21,14 +30,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-muted/30">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link href={isSetup ? "/setup" : "/dashboard"} className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm">
-              CC
-            </span>
-            <span className="hidden sm:inline">CardSpend</span>
-          </Link>
-          <nav className="flex flex-wrap items-center gap-1 sm:gap-2">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:px-6">
+          <div className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
+            <Link
+              href={isSetup ? "/setup" : "/dashboard"}
+              className="flex min-w-0 items-center gap-2 font-semibold tracking-tight"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm">
+                CC
+              </span>
+              <span className="hidden sm:inline">CardSpend</span>
+            </Link>
+            {!isSetup ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0 touch-manipulation sm:h-10 sm:w-10"
+                aria-label="Actualizar página"
+                title="Recargar datos (útil en el celular)"
+                onClick={() => window.location.reload()}
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden />
+              </Button>
+            ) : null}
+          </div>
+          <nav className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1 sm:gap-2">
             {!isSetup &&
               nav.map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/");
