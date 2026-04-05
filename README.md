@@ -148,7 +148,7 @@ Tras `npm install` corre `postinstall` → `prisma generate`.
 3. **Variables** en el proyecto Vercel: como mínimo **`DATABASE_URL`** (obligatoria para que el build aplique el esquema) y `NEXT_PUBLIC_APP_URL` (URL real del deploy). Opcional: Google, Telegram, Resend.
 4. **Previews / ramas**: si un deploy de preview usa la **misma** `DATABASE_URL` que producción, cada build también ejecutará `db push` (el esquema queda al día; conviene que sea consciente o usar otra base para previews).
 5. **Seed / primer usuario**: categorías con `db:seed` si hace falta; usuario inicial desde **`/setup`** en el navegador. Para poblar producción sin abrir la app en local: `db:seed:production` con env descargado.
-6. **PDF en serverless**: la lectura de PDF (`pdf-parse`) se carga **solo al importar un archivo**, no al abrir `/imports`. Así no se ejecuta `pdfjs-dist` en cada GET (en Vercel faltaba `@napi-rs/canvas` y podía dar 500 al entrar a Resúmenes).
+6. **PDF en serverless**: la lectura de PDF (`pdf-parse`) se carga **solo al importar un archivo**, no al abrir `/imports`. Así no se ejecuta `pdfjs-dist` en cada GET (en Vercel faltaba `@napi-rs/canvas` y podía dar 500 al entrar a Resúmenes). **Pendiente en producción:** si al subir un PDF falla con `Cannot find module '.../pdf.worker.mjs'` / *Setting up fake worker failed*, es el worker de pdfjs que no resuelve en el bundle de Vercel — ver **[BACKLOG.md — Seguir: PDF en serverless](./BACKLOG.md#seguir-pdf-en-serverless-vercel)**.
 
 Cada **push a `main`** suele disparar un deploy automático (`npm run sync:github` o push manual).
 
@@ -238,7 +238,7 @@ El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 | Prioridad | Temas principales |
 |-----------|-------------------|
 | **P0** | Proteger acceso (auth o contraseña en env), variables en Vercel, onboarding guiado tras setup, idioma/moneda unificados (ej. ARS). |
-| **P1** | Cuotas y seguimiento mensual; bonificaciones/reintegros + KPI; millas/puntos + KPI; **Google Calendar al importar** (cerrar flujo: duplicados, errores visibles); plantilla/validación CSV; categorías editables en UI; PWA; pull-to-refresh; migraciones Prisma formales. |
+| **P1** | Cuotas y seguimiento mensual; bonificaciones/reintegros + KPI; millas/puntos + KPI; **adicionales de tarjeta** (alta/edición, detección en consumos importados, KPI en dashboard); **Google Calendar al importar** (cerrar flujo: duplicados, errores visibles); plantilla/validación CSV; categorías editables en UI; PWA; pull-to-refresh; migraciones Prisma formales. |
 | **QA** | Validar import CSV/PDF + evento en Google Calendar en tu entorno. |
 | **P2** | Tests (incl. parsers), observabilidad, multi-usuario real, export CSV/Excel, mejoras OCR/plantillas. |
 

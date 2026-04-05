@@ -70,13 +70,38 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | **i18n** | Mezcla ES/EN en algunas etiquetas o mensajes legacy. |
 | **Moneda** | `formatCurrency` orientado a USD; sin `NEXT_PUBLIC_CURRENCY` / ARS. |
 | **Cuotas** | Sin seguimiento por cuota: hoy los movimientos en cuotas no se proyectan mes a mes (importe restante, N de cuota, vencimiento por mes). Ver pendiente P1. |
+| **Adicionales de tarjeta** | Sin datos de titulares adicionales en el alta/edición de tarjeta; el import no asocia consumos a un adicional; dashboard sin KPI por adicional (ver P1). |
 | **Bonificaciones / reintegros** | En resúmenes suelen aparecer como BONIF, promos o créditos; hoy el import puede ignorarlos. Pendiente: capturarlos y un KPI dedicado (ver P1). |
 | **Fidelización (millas / puntos)** | Sin tracking de programas tipo Millas BBVA, Aerolíneas Plus, etc.; pendiente modelo + KPI (ver P1). |
 | **Google Calendar y resúmenes** | Ya se intenta crear un evento de vencimiento al importar si hay OAuth; falta cerrar el comportamiento deseado de punta a punta (feedback, duplicados, fallos). Ver P1. |
 | **Tests** | Sin e2e/unit automatizados. |
-| **PDF** | Parsers de texto para **Brubank**, **BBVA**, **Banco Nación (MC/Nativa)**; otros bancos: **CSV** o nuevos parsers según formato. |
+| **PDF** | Parsers de texto para **Brubank**, **BBVA**, **Banco Nación (MC/Nativa)**; otros bancos: **CSV** o nuevos parsers según formato. **Producción (Vercel):** ver [Seguir: PDF en serverless](#seguir-pdf-en-serverless-vercel). |
 | **Conciliación** | Modelo y datos; flujo “matched/unmatched” puede profundizarse. |
 | **WhatsApp** | No integrado (API Meta/Twilio); documentado en UI. |
+
+---
+
+## Seguir: PDF en serverless (Vercel)
+
+**Estado:** bloqueo al **subir un PDF** (estado de cuenta / resumen) en el deploy, aunque en local pueda funcionar.
+
+**Error observado (abr 2026):**
+
+```text
+Setting up fake worker failed: "Cannot find module '/var/task/.next/server/chunks/pdf.worker.mjs' imported from /var/task/.next/server/chunks/....js"
+```
+
+**Qué pasa:** `pdf-parse` usa **`pdfjs-dist`**, que intenta levantar el **worker** (`pdf.worker.mjs`). En el bundle de **Next.js** en **Vercel** (`/var/task/`) ese path no se resuelve: el worker no queda empaquetado o la ruta apunta a un chunk inexistente.
+
+**Ya mitigado antes (no es este bug):** polyfills `DOMMatrix` / APIs DOM en Node (`lib/pdf-node-polyfills.ts`); dependencia directa `@napi-rs/canvas`; import dinámico de `pdf-parse` para no cargar pdfjs en cada GET de `/imports`.
+
+**Líneas de trabajo para la próxima sesión:**
+
+1. Revisar en `pdf-parse` / `pdfjs-dist` si en **Node** se puede forzar **modo sin worker** o `GlobalWorkerOptions.workerSrc` apuntando a un archivo **copiado** al output (`next.config` → `webpack` `copy` desde `node_modules/pdfjs-dist/build`).
+2. Probar **`serverExternalPackages`** (Next 14) para `pdfjs-dist` / `pdf-parse` y verificar trazas en build.
+3. Alternativa: librería de **solo extracción de texto** en servidor que no dependa del worker de pdfjs, o build **legacy** de pdfjs documentado para Node.
+
+**Archivos tocados hoy:** `app/actions.ts` (`statementFileToText`), `lib/pdf-node-polyfills.ts`, `package.json`.
 
 ---
 
@@ -100,6 +125,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 11. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
 12. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
 13. **Prisma Migrate** — Opcional: pasar de `db push` en deploy a **migraciones versionadas** (`migrate deploy`) para equipos más grandes; hoy el esquema se aplica en cada build de Vercel.
+14. **Adicionales de tarjeta (titulares adicionales)** — En **alta y edición de tarjeta**, permitir registrar uno o más **adicionales** (nombre o etiqueta que figure en el resumen). En **importación de consumos** (CSV/PDF u OCR), **detectar** a qué adicional corresponde cada movimiento según texto del comercio/descripción o patrones del banco, y guardar la asociación. **Dashboard:** al menos un **KPI** agregado (p. ej. gasto del mes por adicional, o comparación titular vs adicionales) coherente con el filtro de mes calendario ya usado en la app.
 
 ### QA / validación manual (pendiente de confirmar en tu entorno)
 
@@ -107,11 +133,11 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ### P2 — Calidad y escala
 
-14. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
-15. **Observabilidad** — Logs en imports/OAuth; páginas de error amigables (p. ej. `/imports` tiene `error.tsx`); revisar resto de rutas.
-16. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
-17. **Export** — CSV/Excel de gastos por rango.
-18. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
+15. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
+16. **Observabilidad** — Logs en imports/OAuth; páginas de error amigables (p. ej. `/imports` tiene `error.tsx`); revisar resto de rutas.
+17. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
+18. **Export** — CSV/Excel de gastos por rango.
+19. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
 
 ---
 
@@ -119,7 +145,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Listo | Pendiente destacado |
 |-------|----------------------|
-| Ingresos/límites con **vencimientos de tarjeta en el mes**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, **Calendar al importar resumen (cerrar flujo)**, **bonificaciones/reintegros y KPI**, **millas/puntos y KPI**, cuotas, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
+| Ingresos/límites con **vencimientos de tarjeta en el mes**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, **Calendar al importar resumen (cerrar flujo)**, **bonificaciones/reintegros y KPI**, **millas/puntos y KPI**, **adicionales de tarjeta (config + detección en consumos + KPI en dashboard)**, cuotas, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
 
 ---
 
