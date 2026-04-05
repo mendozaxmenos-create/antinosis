@@ -65,7 +65,8 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Tema | Detalle |
 |------|---------|
-| **Auth** | No hay login: quien tenga la URL puede entrar (salvo capas extra en Vercel). |
+| **Auth** | No hay login por usuario con roles; quien tenga la URL puede entrar (salvo capas extra en Vercel). Pendiente: contraseña por cuenta admin y modelo multi-usuario (ver P0). |
+| **Admin / métricas de producto** | No existe **dashboard de operaciones** para el dueño de la app: usuarios activos, en **modo prueba** / trial, **canon o ingreso mensual** (suscripción), u otras métricas al salir al público. Sin **rol admin** ni acceso dedicado desde la UI del cliente (ver P0 ítems 5–7). |
 | **Single-tenant** | Un solo perfil vía `/setup`; no hay multi-cuenta. |
 | **i18n** | Mezcla ES/EN en algunas etiquetas o mensajes legacy. |
 | **Moneda** | `formatCurrency` orientado a USD; sin `NEXT_PUBLIC_CURRENCY` / ARS. |
@@ -104,31 +105,34 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 2. **Variables en Vercel** — `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, OAuth Google si aplica; si usás alertas: `TELEGRAM_BOT_TOKEN` y/o Resend; verificar dominio de callback OAuth.
 3. **Onboarding vacío** — Tras `/setup`, guiar: primera tarjeta + primera configuración de mes (banners o empty states en dashboard/cards).
 4. **Idioma y moneda** — Unificar copy en español (o inglés) y parametrizar moneda/locale para Argentina.
+5. **Contraseña y rol admin (cuenta propietario)** — Permitir **setear contraseña** (y sesión) para al menos un usuario **administrador** (el dueño del producto o cuenta principal), distinto o complementario a un `APP_PASSWORD` global. Base para auditar quién entra como admin vs usuario final.
+6. **Dashboard de operaciones (métricas de la app)** — Para el **lanzamiento al público general**: vista protegida solo para admin con **métricas de negocio** — p. ej. **cantidad de usuarios activos**, usuarios en **modo prueba** / trial, **canon o ingreso mensual** recurrente (MRR), y otras KPIs que definas (registros, churn, uso). Depende de modelo de datos multi-usuario / suscripción y de instrumentación.
+7. **Acceso al panel admin desde la app cliente** — En el **dashboard del cliente** (p. ej. CuantoQueda / layout principal), un acceso explícito para quien sea admin: **“Ver panel de administración”** o **modo admin**, que lleve al dashboard de métricas (ítem 6) sin confundirlo con el flujo normal de gastos y presupuesto.
 
 ### P1 — Producto
 
-5. **Compras en cuotas** — Vista o apartado que liste compras financiadas: cuotas totales, cuota actual, importe pendiente por mes de vencimiento (alineado al cierre/resumen de la tarjeta). Hoy el import guarda `installments` por defecto en 1; conviene parser por banco + modelo de “plan de cuotas” si hace falta.
-6. **Bonificaciones y reintegros en resúmenes** — Campo o entidad para movimientos de crédito del resumen (promociones del banco, BONIF, reintegros por compra). Sirve para **otro KPI**: reintegros del período, “ahorro efectivo” vs consumo bruto, evolución mes a mes. Los parsers hoy suelen descartar importes no positivos; habría que persistirlos aparte o con signo/clarificados.
-7. **Programas de fidelización** — Trackear saldos o movimientos de **Millas BBVA**, **Aerolíneas Plus**, u otros programas vinculados a la tarjeta (carga manual o extracto cuando exista). **Otro KPI** en dashboard: puntos/millas del mes, acumulado, vencimientos si aplica.
-8. **Google Calendar al subir un resumen** — Que cada importación de resumen (CSV/PDF) **registre el vencimiento de pago** en el Google Calendar del usuario cuando tenga cuenta OAuth vinculada. Incluye: comportamiento claro si no hay token, si la API falla, evitar duplicados al reimportar, texto/título del evento (tarjeta, importe a pagar si aplica) y validación en todos los parsers.
-9. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
-10. **Categorías** — CRUD en UI (hoy vienen del seed).
-11. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
-12. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
-13. **Prisma Migrate** — Opcional: pasar de `db push` en deploy a **migraciones versionadas** (`migrate deploy`) para equipos más grandes; hoy el esquema se aplica en cada build de Vercel.
-14. **Adicionales de tarjeta (titulares adicionales)** — En **alta y edición de tarjeta**, permitir registrar uno o más **adicionales** (nombre o etiqueta que figure en el resumen). En **importación de consumos** (CSV/PDF u OCR), **detectar** a qué adicional corresponde cada movimiento según texto del comercio/descripción o patrones del banco, y guardar la asociación. **Dashboard:** al menos un **KPI** agregado (p. ej. gasto del mes por adicional, o comparación titular vs adicionales) coherente con el filtro de mes calendario ya usado en la app.
+8. **Compras en cuotas** — Vista o apartado que liste compras financiadas: cuotas totales, cuota actual, importe pendiente por mes de vencimiento (alineado al cierre/resumen de la tarjeta). Hoy el import guarda `installments` por defecto en 1; conviene parser por banco + modelo de “plan de cuotas” si hace falta.
+9. **Bonificaciones y reintegros en resúmenes** — Campo o entidad para movimientos de crédito del resumen (promociones del banco, BONIF, reintegros por compra). Sirve para **otro KPI**: reintegros del período, “ahorro efectivo” vs consumo bruto, evolución mes a mes. Los parsers hoy suelen descartar importes no positivos; habría que persistirlos aparte o con signo/clarificados.
+10. **Programas de fidelización** — Trackear saldos o movimientos de **Millas BBVA**, **Aerolíneas Plus**, u otros programas vinculados a la tarjeta (carga manual o extracto cuando exista). **Otro KPI** en dashboard: puntos/millas del mes, acumulado, vencimientos si aplica.
+11. **Google Calendar al subir un resumen** — Que cada importación de resumen (CSV/PDF) **registre el vencimiento de pago** en el Google Calendar del usuario cuando tenga cuenta OAuth vinculada. Incluye: comportamiento claro si no hay token, si la API falla, evitar duplicados al reimportar, texto/título del evento (tarjeta, importe a pagar si aplica) y validación en todos los parsers.
+12. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
+13. **Categorías** — CRUD en UI (hoy vienen del seed).
+14. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
+15. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
+16. **Prisma Migrate** — Opcional: pasar de `db push` en deploy a **migraciones versionadas** (`migrate deploy`) para equipos más grandes; hoy el esquema se aplica en cada build de Vercel.
+17. **Adicionales de tarjeta (titulares adicionales)** — En **alta y edición de tarjeta**, permitir registrar uno o más **adicionales** (nombre o etiqueta que figure en el resumen). En **importación de consumos** (CSV/PDF u OCR), **detectar** a qué adicional corresponde cada movimiento según texto del comercio/descripción o patrones del banco, y guardar la asociación. **Dashboard:** al menos un **KPI** agregado (p. ej. gasto del mes por adicional, o comparación titular vs adicionales) coherente con el filtro de mes calendario ya usado en la app.
 
 ### QA / validación manual (pendiente de confirmar en tu entorno)
 
-- **Import de resumen + Google Calendar** — Probar flujo completo: `GOOGLE_*` + `NEXT_PUBLIC_APP_URL` en `.env` o Vercel; conectar Calendar en **Resúmenes**; subir CSV o PDF; verificar que en Google Calendar aparezca un **evento de día completo** en la fecha de vencimiento calculada (según día de vencimiento de la tarjeta). Objetivo de producto (ver P1 ítem 8): que esto sea el comportamiento estable y visible para el usuario. Si falla, revisar consentimiento OAuth, redirect URI y logs del deploy.
+- **Import de resumen + Google Calendar** — Probar flujo completo: `GOOGLE_*` + `NEXT_PUBLIC_APP_URL` en `.env` o Vercel; conectar Calendar en **Resúmenes**; subir CSV o PDF; verificar que en Google Calendar aparezca un **evento de día completo** en la fecha de vencimiento calculada (según día de vencimiento de la tarjeta). Objetivo de producto (ver P1 ítem 11): que esto sea el comportamiento estable y visible para el usuario. Si falla, revisar consentimiento OAuth, redirect URI y logs del deploy.
 
 ### P2 — Calidad y escala
 
-15. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
-16. **Observabilidad** — Logs en imports/OAuth; páginas de error amigables (p. ej. `/imports` tiene `error.tsx`); revisar resto de rutas.
-17. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
-18. **Export** — CSV/Excel de gastos por rango.
-19. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
+18. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
+19. **Observabilidad** — Logs en imports/OAuth; páginas de error amigables (p. ej. `/imports` tiene `error.tsx`); revisar resto de rutas.
+20. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
+21. **Export** — CSV/Excel de gastos por rango.
+22. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
 
 ---
 
@@ -136,7 +140,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Listo | Pendiente destacado |
 |-------|----------------------|
-| Ingresos/límites con **vencimientos de tarjeta en el mes**, **bonos de sueldo + evolución neto/bonos en Configuración**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, **Calendar al importar resumen (cerrar flujo)**, **bonificaciones/reintegros en resúmenes (import) y KPI**, **millas/puntos y KPI**, **adicionales de tarjeta (config + detección en consumos + KPI en dashboard)**, cuotas, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
+| Ingresos/límites con **vencimientos de tarjeta en el mes**, **bonos de sueldo + evolución neto/bonos en Configuración**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth** + **admin** (contraseña, rol), **dashboard de operaciones** (usuarios activos, trial, canon/MRR) y **acceso admin desde la app**; moneda/locale; onboarding guiado; **Calendar al importar resumen**; bonificaciones/reintegros + KPI; millas/puntos; adicionales de tarjeta; cuotas; categorías; PWA/pull-to-refresh; tests; migraciones |
 
 ---
 

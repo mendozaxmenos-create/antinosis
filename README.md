@@ -239,7 +239,7 @@ El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 
 | Prioridad | Temas principales |
 |-----------|-------------------|
-| **P0** | Proteger acceso (auth o contraseña en env), variables en Vercel, onboarding guiado tras setup, idioma/moneda unificados (ej. ARS). |
+| **P0** | Proteger acceso (auth o contraseña en env), **contraseña y rol admin** para el dueño, **dashboard de operaciones** al salir al público (usuarios activos, modo prueba/trial, canon o ingreso mensual/MRR, etc.), **enlace “panel de administración” / modo admin** desde el dashboard del cliente; variables en Vercel; onboarding guiado; idioma/moneda (ej. ARS). |
 | **P1** | Cuotas y seguimiento mensual; bonificaciones/reintegros + KPI; millas/puntos + KPI; **adicionales de tarjeta** (alta/edición, detección en consumos importados, KPI en dashboard); **Google Calendar al importar** (cerrar flujo: duplicados, errores visibles); plantilla/validación CSV; categorías editables en UI; PWA; pull-to-refresh; migraciones Prisma formales. |
 | **QA** | Validar import CSV/PDF + evento en Google Calendar en tu entorno. |
 | **P2** | Tests (incl. parsers), observabilidad, multi-usuario real, export CSV/Excel, mejoras OCR/plantillas. |
