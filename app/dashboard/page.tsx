@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/helpers";
 import { currentMonthYear } from "@/lib/helpers";
 import { getDefaultUserId } from "@/lib/user";
-import { getMonthFinancials } from "@/services/budgetService";
+import { countMonthsWithNetIncome, getMonthFinancials, sumRegisteredNetIncome } from "@/services/budgetService";
 import {
   getCategoryTotalsForMonth,
   getMonthlySummaries,
@@ -19,19 +19,16 @@ import {
 import { listDashboardAlerts } from "@/services/alertService";
 import { syncAlertsForMonth } from "@/services/alertService";
 import { format } from "date-fns";
-import { Bell, CalendarClock, Sparkles } from "lucide-react";
+import { Bell, CalendarClock, PiggyBank, Sparkles, TrendingUp, Wallet } from "lucide-react";
+import { explainBudgetComputation } from "@/lib/calculations";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export default async function DashboardPage() {
   const userId = await getDefaultUserId();
   if (!userId) {
-    return (
-      <div className="rounded-lg border bg-card p-8 text-center">
-        <p className="text-muted-foreground">No user found. Run </p>
-        <code className="mt-2 block rounded bg-muted px-2 py-1 text-sm">npm run db:push && npm run db:seed</code>
-      </div>
-    );
+    redirect("/setup");
   }
 
   const { month, year } = currentMonthYear();
@@ -42,13 +39,24 @@ export default async function DashboardPage() {
   );
   await syncAlertsForMonth(userId, month, year, percentConsumed, config.id);
 
-  const [categoryTotals, monthRows, cardSpend, alerts, recentExpenses] = await Promise.all([
-    getCategoryTotalsForMonth(userId, month, year),
-    getMonthlySummaries(userId, 6),
-    spendingByCardForMonth(userId, month, year),
-    listDashboardAlerts(userId, month, year, 12),
-    listExpensesForMonth(userId, month, year),
-  ]);
+  const [categoryTotals, monthRows, cardSpend, alerts, recentExpenses, totalNetRegistered, monthsWithIncome] =
+    await Promise.all([
+      getCategoryTotalsForMonth(userId, month, year),
+      getMonthlySummaries(userId, 6),
+      spendingByCardForMonth(userId, month, year),
+      listDashboardAlerts(userId, month, year, 12),
+      listExpensesForMonth(userId, month, year),
+      sumRegisteredNetIncome(userId),
+      countMonthsWithNetIncome(userId),
+    ]);
+
+  const breakdown = explainBudgetComputation({
+    monthlyIncome: config.monthlyIncome,
+    allowedPercentage: config.allowedPercentage,
+    manualCardLimit: config.manualCardLimit,
+    soledadCashTransfer: config.soledadCashTransfer,
+    savingsPercentage: config.savingsPercentage,
+  });
 
   const topCategory = categoryTotals[0]?.categoryName;
   const insights: string[] = [
@@ -73,39 +81,151 @@ export default async function DashboardPage() {
             Mes en curso · {format(new Date(year, month - 1, 1), "MMMM yyyy")}
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/expenses">Agregar gasto</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/settings">Configuración e ingresos</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/expenses">Agregar gasto</Link>
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Presupuesto mensual</CardDescription>
-            <CardTitle className="text-2xl">{formatCurrency(budget)}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Gasto en curso (manual)</CardDescription>
-            <CardTitle className="text-2xl">{formatCurrency(spent)}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Disponible (según límite)</CardDescription>
-            <CardTitle className="text-2xl text-emerald-700 dark:text-emerald-400">
-              {formatCurrency(remaining)}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>% del límite (en curso)</CardDescription>
-            <CardTitle className="text-2xl">{percentConsumed.toFixed(1)}%</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      <section aria-labelledby="dashboard-kpis-heading" className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <h2 id="dashboard-kpis-heading" className="text-sm font-medium text-muted-foreground">
+            Indicadores del mes
+          </h2>
+          <Link
+            href="/settings"
+            className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            Editar en Configuración
+          </Link>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <Card className="border-muted">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Sueldo neto</CardDescription>
+              <Wallet className="h-4 w-4 text-muted-foreground" aria-hidden />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.netSalary)}</p>
+              <p className="text-xs text-muted-foreground">Mes contable actual</p>
+            </CardContent>
+          </Card>
+          <Card className="border-muted">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">A Soledad (efectivo)</CardDescription>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" aria-hidden />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.soledadCash)}</p>
+              <p className="text-xs text-muted-foreground">Descontado del neto</p>
+            </CardContent>
+          </Card>
+          <Card className="border-muted">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Disponible (post-Soledad)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.baseAfterSoledad)}</p>
+              <p className="text-xs text-muted-foreground">Base antes del ahorro</p>
+            </CardContent>
+          </Card>
+          <Card className="border-muted">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">% Ahorro</CardDescription>
+              <PiggyBank className="h-4 w-4 text-muted-foreground" aria-hidden />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{breakdown.savingsPct.toFixed(1)}%</p>
+              <p className="text-xs text-muted-foreground">Sobre el disponible</p>
+            </CardContent>
+          </Card>
+          <Card className="border-muted">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Monto ahorro (estim.)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.savingsAmount)}</p>
+              <p className="text-xs text-muted-foreground">Según regla del mes</p>
+            </CardContent>
+          </Card>
+          <Card className="border-primary/30 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide text-foreground/80">
+                Límite tarjeta
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(budget)}</p>
+              {breakdown.manualOverride != null ? (
+                <p className="text-xs text-muted-foreground">Tope manual aplicado</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Presupuesto en curso</p>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Gasto en curso</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(spent)}</p>
+              <p className="text-xs text-muted-foreground">Manual · cuenta para el límite</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Importado (resúmenes)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(spentImportedTotal)}</p>
+              <p className="text-xs text-muted-foreground">No resta del límite</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Saldo vs límite</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p
+                className={`text-2xl font-semibold tabular-nums ${
+                  remaining >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
+                }`}
+              >
+                {formatCurrency(remaining)}
+              </p>
+              <p className="text-xs text-muted-foreground">Disponible bajo el tope</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Uso del límite</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{percentConsumed.toFixed(1)}%</p>
+              <p className="text-xs text-muted-foreground">Gasto manual / límite</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Suma ingresos (hist.)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(totalNetRegistered)}</p>
+              <p className="text-xs text-muted-foreground">
+                {monthsWithIncome} mes{monthsWithIncome === 1 ? "" : "es"} con sueldo ·{" "}
+                <Link href="/settings" className="underline">
+                  Evolución
+                </Link>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">

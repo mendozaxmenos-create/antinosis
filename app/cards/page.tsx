@@ -5,11 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { getDefaultUserId } from "@/lib/user";
 import { CardForm } from "@/components/forms/card-form";
 import { DeleteCardButton } from "@/components/forms/delete-card-button";
+import { redirect } from "next/navigation";
 
 export default async function CardsPage() {
   const userId = await getDefaultUserId();
   if (!userId) {
-    return <p className="text-muted-foreground">Run database seed first.</p>;
+    redirect("/setup");
   }
 
   const cards = await prisma.creditCard.findMany({

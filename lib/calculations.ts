@@ -1,16 +1,44 @@
 import type { Expense } from "@prisma/client";
 
-export function calculateMonthlyLimit(input: {
+export type BudgetComputationInput = {
   monthlyIncome: number | null | undefined;
   allowedPercentage: number | null | undefined;
   manualCardLimit: number | null | undefined;
-}): number {
-  if (input.manualCardLimit != null && input.manualCardLimit > 0) {
-    return input.manualCardLimit;
-  }
-  const income = input.monthlyIncome ?? 0;
-  const pct = (input.allowedPercentage ?? 0) / 100;
-  return Math.max(0, income * pct);
+  soledadCashTransfer?: number | null | undefined;
+  savingsPercentage?: number | null | undefined;
+};
+
+/** Desglose: neto → −Soledad → −% ahorro sobre el disponible → límite tarjeta (salvo tope manual). */
+export function explainBudgetComputation(input: BudgetComputationInput) {
+  const net = Math.max(0, input.monthlyIncome ?? 0);
+  const soledad = Math.max(0, input.soledadCashTransfer ?? 0);
+  const base = Math.max(0, net - soledad);
+  const savingsPctRaw =
+    input.savingsPercentage != null && input.savingsPercentage !== undefined
+      ? input.savingsPercentage
+      : input.allowedPercentage != null
+        ? 100 - input.allowedPercentage
+        : 0;
+  const savingsPct = Math.min(100, Math.max(0, savingsPctRaw));
+  const savingsAmount = base * (savingsPct / 100);
+  const limitFromRule = base - savingsAmount;
+  const manual = input.manualCardLimit;
+  const finalLimit =
+    manual != null && manual > 0 ? manual : Math.max(0, limitFromRule);
+  return {
+    netSalary: net,
+    soledadCash: soledad,
+    baseAfterSoledad: base,
+    savingsPct,
+    savingsAmount,
+    limitFromRule,
+    manualOverride: manual != null && manual > 0 ? manual : null,
+    finalLimit,
+  };
+}
+
+export function calculateMonthlyLimit(input: BudgetComputationInput): number {
+  return explainBudgetComputation(input).finalLimit;
 }
 
 export function calculateTotalSpent(expenses: Pick<Expense, "amount">[]): number {

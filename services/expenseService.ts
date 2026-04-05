@@ -53,13 +53,15 @@ export async function getMonthlySummaries(
     const expenses = await prisma.expense.findMany({
       where: { postedMonth: month, postedYear: year, card: { userId } },
     });
-    const budget =
-      config?.computedCardLimit ??
-      calculateMonthlyLimit({
-        monthlyIncome: config?.monthlyIncome,
-        allowedPercentage: config?.allowedPercentage,
-        manualCardLimit: config?.manualCardLimit,
-      });
+    const budget = config
+      ? calculateMonthlyLimit({
+          monthlyIncome: config.monthlyIncome,
+          allowedPercentage: config.allowedPercentage,
+          manualCardLimit: config.manualCardLimit,
+          soledadCashTransfer: config.soledadCashTransfer,
+          savingsPercentage: config.savingsPercentage,
+        })
+      : 0;
     const enCurso = filterExpensesForBudgetLimit(expenses);
     const spent = calculateTotalSpent(enCurso);
     const importedSpent = calculateTotalSpent(expenses.filter((e) => !isExpenseAgainstBudget(e.sourceType)));

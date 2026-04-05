@@ -13,6 +13,28 @@ async function refreshAlerts(userId: string, month: number, year: number) {
   await syncAlertsForMonth(userId, month, year, percentConsumed, config.id);
 }
 
+const firstUserSchema = z.object({ name: z.string().trim().min(1, "Nombre requerido").max(120) });
+
+export async function createFirstUserAction(
+  input: z.infer<typeof firstUserSchema>,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { name } = firstUserSchema.parse(input);
+    const n = await prisma.user.count();
+    if (n > 0) {
+      return { ok: false, error: "Ya existe un perfil." };
+    }
+    await prisma.user.create({ data: { name } });
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: e.errors[0]?.message ?? "Dato inválido" };
+    }
+    return { ok: false, error: "No se pudo crear el perfil." };
+  }
+}
+
 const expenseBase = z.object({
   userId: z.string().min(1),
   transactionDate: z.string().min(1),
@@ -102,7 +124,9 @@ const budgetSchema = z.object({
   month: z.coerce.number().min(1).max(12),
   year: z.coerce.number(),
   monthlyIncome: z.coerce.number().nonnegative().nullable(),
-  allowedPercentage: z.coerce.number().min(0).max(100).nullable(),
+  allowedPercentage: z.coerce.number().min(0).max(100).nullable().optional(),
+  soledadCashTransfer: z.coerce.number().nonnegative().nullable().optional(),
+  savingsPercentage: z.coerce.number().min(0).max(100).nullable().optional(),
   manualCardLimit: z.coerce.number().nonnegative().nullable(),
   thresholds: z
     .array(z.object({ percentage: z.coerce.number(), enabled: z.boolean() }))
@@ -113,14 +137,56 @@ export async function saveBudgetAction(input: z.infer<typeof budgetSchema>) {
   const data = budgetSchema.parse(input);
   await upsertBudgetConfig(data.userId, data.month, data.year, {
     monthlyIncome: data.monthlyIncome,
-    allowedPercentage: data.allowedPercentage,
+    allowedPercentage: data.allowedPercentage ?? null,
+    soledadCashTransfer: data.soledadCashTransfer ?? 0,
+    savingsPercentage: data.savingsPercentage ?? null,
     manualCardLimit: data.manualCardLimit,
     thresholds: data.thresholds,
   });
   await refreshAlerts(data.userId, data.month, data.year);
   revalidatePath("/dashboard");
+  revalidatePath("/settings");
   revalidatePath("/budget");
   revalidatePath("/reports");
+}
+
+const alertChannelSchema = z.object({
+  userId: z.string(),
+  alertChannel: z.enum(["app", "email", "telegram"]),
+  alertEmail: z.string().nullable().optional(),
+  telegramChatId: z.string().nullable().optional(),
+});
+
+export async function saveAlertChannelAction(
+  input: z.infer<typeof alertChannelSchema>,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const data = alertChannelSchema.parse(input);
+    if (data.alertChannel === "email") {
+      const em = data.alertEmail?.trim();
+      if (!em) return { ok: false, error: "Indicá un email para recibir alertas." };
+      const ok = z.string().email().safeParse(em);
+      if (!ok.success) return { ok: false, error: "Email inválido." };
+    }
+    if (data.alertChannel === "telegram") {
+      const id = data.telegramChatId?.trim();
+      if (!id) return { ok: false, error: "Indicá el ID de chat de Telegram." };
+    }
+
+    await prisma.user.update({
+      where: { id: data.userId },
+      data: {
+        alertChannel: data.alertChannel,
+        alertEmail: data.alertChannel === "email" ? data.alertEmail?.trim() ?? null : null,
+        telegramChatId: data.alertChannel === "telegram" ? data.telegramChatId?.trim() ?? null : null,
+      },
+    });
+    revalidatePath("/settings");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "No se pudo guardar." };
+  }
 }
 
 const cardSchema = z.object({

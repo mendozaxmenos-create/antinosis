@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { checkThresholds } from "@/lib/calculations";
+import { deliverExternalAlerts } from "@/lib/notify-external";
 
 /**
  * Evaluates spend vs budget and creates AlertEvent rows for newly crossed thresholds.
@@ -37,9 +38,14 @@ export async function syncAlertsForMonth(
       year,
       alertKind: "threshold",
       thresholdPercentage,
-      message: `${thresholdPercentage}% of monthly budget reached`,
+      message: `Alcanzaste el ${thresholdPercentage}% del límite mensual en tarjeta.`,
     })),
   });
+
+  await deliverExternalAlerts(
+    userId,
+    toCreate.map((p) => `Alcanzaste el ${p}% del límite mensual en tarjeta (${month}/${year}).`),
+  );
 }
 
 /** Alertas de umbral del mes actual + próximos vencimientos de pago (importaciones). */

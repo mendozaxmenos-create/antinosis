@@ -3,6 +3,7 @@ import { categorizeFromText } from "@/lib/statement-categorize";
 import { computePaymentDueDate } from "@/lib/payment-due-date";
 import type { ParsedStatementRow } from "@/lib/parse-statement-csv";
 import { createPaymentDueCalendarEvent } from "@/lib/google-calendar";
+import { deliverExternalAlerts } from "@/lib/notify-external";
 
 export async function importStatementRows(input: {
   userId: string;
@@ -68,6 +69,7 @@ export async function importStatementRows(input: {
     const existingDue = await tx.alertEvent.findFirst({
       where: { statementImportId: stmt.id, alertKind: "payment_due" },
     });
+    let createdPaymentDueAlert = false;
     if (!existingDue) {
       await tx.alertEvent.create({
         data: {
@@ -81,10 +83,21 @@ export async function importStatementRows(input: {
           statementImportId: stmt.id,
         },
       });
+      createdPaymentDueAlert = true;
     }
 
-    return { statementImport: stmt, expensesCreated: created, paymentDueDate };
+    return {
+      statementImport: stmt,
+      expensesCreated: created,
+      paymentDueDate,
+      createdPaymentDueAlert,
+    };
   });
+
+  if (result.createdPaymentDueAlert) {
+    const dueMsg = `Vencimiento de pago (${card.bank} ·••• ${card.last4}): ${formatDueMessage(result.paymentDueDate)}`;
+    await deliverExternalAlerts(input.userId, [dueMsg]);
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: input.userId },

@@ -10,11 +10,12 @@ import { CardSpendChart } from "@/components/charts/card-spend-chart";
 import { formatCurrency } from "@/lib/helpers";
 import { currentMonthYear } from "@/lib/helpers";
 import { format } from "date-fns";
+import { redirect } from "next/navigation";
 
 export default async function ReportsPage() {
   const userId = await getDefaultUserId();
   if (!userId) {
-    return <p className="text-muted-foreground">Run database seed first.</p>;
+    redirect("/setup");
   }
   const { month, year } = currentMonthYear();
 

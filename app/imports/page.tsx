@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { StatementUploadForm } from "@/components/forms/statement-upload-form";
 import { GoogleCalendarConnect } from "@/components/integrations/google-calendar-connect";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { redirect } from "next/navigation";
 
 export default async function ImportsPage({
   searchParams,
@@ -16,7 +17,7 @@ export default async function ImportsPage({
 }) {
   const userId = await getDefaultUserId();
   if (!userId) {
-    return <p className="text-muted-foreground">Ejecutá el seed de la base primero.</p>;
+    redirect("/setup");
   }
 
   const { month, year } = currentMonthYear();

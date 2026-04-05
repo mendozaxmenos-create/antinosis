@@ -11,6 +11,10 @@ model User {
   id                     String                  @id @default(cuid())
   name                   String
   createdAt              DateTime                @default(now())
+  /// app | email | telegram — dónde replicar alertas además del panel
+  alertChannel           String                  @default("app")
+  alertEmail             String?
+  telegramChatId       String?
   /// OAuth refresh token para Google Calendar (tratar como secreto)
   googleRefreshToken     String?
   googleCalendarEmail    String?
@@ -27,8 +31,14 @@ model MonthlyBudgetConfig {
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   month               Int
   year                Int
+  /// Sueldo neto del mes (ingreso principal)
   monthlyIncome       Float?
+  /// Legado: antes el límite era ingreso × (allowed/100). Si savingsPercentage está definido, se ignora en el cálculo nuevo.
   allowedPercentage   Float?
+  /// Efectivo transferido a Soledad (se resta del sueldo neto antes de ahorro y límite tarjeta)
+  soledadCashTransfer Float            @default(0)
+  /// % del disponible (neto − Soledad) destinado a ahorro; el límite en tarjeta es el resto (salvo tope manual)
+  savingsPercentage   Float?
   manualCardLimit     Float?
   computedCardLimit   Float
   createdAt           DateTime         @default(now())

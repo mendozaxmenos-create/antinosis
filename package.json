@@ -5,11 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "dev:lan": "next dev -H 0.0.0.0 -p 3000",
-    "build": "prisma generate && prisma db push && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "db:seed:production": "dotenv -o -e .env -e .env.production.local -- prisma db seed",
+    "db:wipe": "tsx db/prisma/wipe-all-data.ts",
+    "db:wipe:production": "dotenv -o -e .env -e .env.production.local -- tsx db/prisma/wipe-all-data.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
@@ -42,6 +45,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",

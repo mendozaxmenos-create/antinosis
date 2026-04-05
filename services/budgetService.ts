@@ -19,12 +19,16 @@ export async function getOrCreateBudgetConfig(userId: string, month: number, yea
     enabled: true,
   }));
 
-  const monthlyIncome = 6000;
-  const allowedPercentage = 25;
+  const monthlyIncome = 0;
+  const allowedPercentage = null;
+  const soledadCashTransfer = 0;
+  const savingsPercentage = null;
   const computedCardLimit = calculateMonthlyLimit({
     monthlyIncome,
     allowedPercentage,
     manualCardLimit: null,
+    soledadCashTransfer,
+    savingsPercentage,
   });
 
   return prisma.monthlyBudgetConfig.create({
@@ -34,6 +38,8 @@ export async function getOrCreateBudgetConfig(userId: string, month: number, yea
       year,
       monthlyIncome,
       allowedPercentage,
+      soledadCashTransfer,
+      savingsPercentage,
       manualCardLimit: null,
       computedCardLimit,
       alertThresholds: { create: defaults },
@@ -50,6 +56,8 @@ export async function upsertBudgetConfig(
     monthlyIncome: number | null;
     allowedPercentage: number | null;
     manualCardLimit: number | null;
+    soledadCashTransfer?: number | null;
+    savingsPercentage?: number | null;
     thresholds?: { percentage: number; enabled: boolean }[];
   },
 ) {
@@ -57,6 +65,8 @@ export async function upsertBudgetConfig(
     monthlyIncome: data.monthlyIncome,
     allowedPercentage: data.allowedPercentage,
     manualCardLimit: data.manualCardLimit,
+    soledadCashTransfer: data.soledadCashTransfer,
+    savingsPercentage: data.savingsPercentage,
   });
 
   const existing = await prisma.monthlyBudgetConfig.findUnique({
@@ -69,6 +79,8 @@ export async function upsertBudgetConfig(
       data: {
         monthlyIncome: data.monthlyIncome,
         allowedPercentage: data.allowedPercentage,
+        soledadCashTransfer: data.soledadCashTransfer ?? 0,
+        savingsPercentage: data.savingsPercentage,
         manualCardLimit: data.manualCardLimit,
         computedCardLimit,
       },
@@ -109,6 +121,8 @@ export async function upsertBudgetConfig(
       year,
       monthlyIncome: data.monthlyIncome,
       allowedPercentage: data.allowedPercentage,
+      soledadCashTransfer: data.soledadCashTransfer ?? 0,
+      savingsPercentage: data.savingsPercentage,
       manualCardLimit: data.manualCardLimit,
       computedCardLimit,
       alertThresholds: {
@@ -119,6 +133,30 @@ export async function upsertBudgetConfig(
       },
     },
     include: { alertThresholds: true },
+  });
+}
+
+/** Histórico de configuraciones por mes (ingresos y límites). */
+export async function listBudgetHistory(userId: string, take = 120) {
+  return prisma.monthlyBudgetConfig.findMany({
+    where: { userId },
+    orderBy: [{ year: "desc" }, { month: "desc" }],
+    take,
+    include: { alertThresholds: true },
+  });
+}
+
+export async function sumRegisteredNetIncome(userId: string) {
+  const agg = await prisma.monthlyBudgetConfig.aggregate({
+    where: { userId, monthlyIncome: { gt: 0 } },
+    _sum: { monthlyIncome: true },
+  });
+  return agg._sum.monthlyIncome ?? 0;
+}
+
+export async function countMonthsWithNetIncome(userId: string) {
+  return prisma.monthlyBudgetConfig.count({
+    where: { userId, monthlyIncome: { gt: 0 } },
   });
 }
 
@@ -135,7 +173,13 @@ export async function getMonthFinancials(userId: string, month: number, year: nu
   const spentImportedTotal = calculateTotalSpent(
     expensesAll.filter((e) => !isExpenseAgainstBudget(e.sourceType)),
   );
-  const budget = config.computedCardLimit;
+  const budget = calculateMonthlyLimit({
+    monthlyIncome: config.monthlyIncome,
+    allowedPercentage: config.allowedPercentage,
+    manualCardLimit: config.manualCardLimit,
+    soledadCashTransfer: config.soledadCashTransfer,
+    savingsPercentage: config.savingsPercentage,
+  });
   const spent = calculateTotalSpent(expensesEnCurso);
   const spentTotalAll = calculateTotalSpent(expensesAll);
   const remaining = calculateRemaining(budget, spent);
