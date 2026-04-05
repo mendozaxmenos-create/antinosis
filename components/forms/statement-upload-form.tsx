@@ -113,12 +113,11 @@ export function StatementUploadForm({
           required
         />
         <p className="text-xs text-muted-foreground">
-          <strong>CSV:</strong> columnas fecha (date/fecha), monto (amount/monto/importe), opcional descripción y comercio;
-          separador <code className="text-[11px]">,</code> o <code className="text-[11px]">;</code>. Montos tipo{" "}
-          <code className="text-[11px]">$ 1.234,56</code> (ARS). <strong>Brubank (PDF):</strong> cargos en{" "}
-          <strong>U$S</strong> se convierten a pesos con la <strong>cotización USD oficial del BCRA</strong> (día hábil;
-          si falta cotización, el día anterior con dato). Ese ARS suma al total a pagar y al panel. Los importados{" "}
-          <strong>no restan del límite mensual</strong> de gasto en curso.
+          <strong>Tamaño:</strong> hasta 8 MB. <strong>CSV:</strong> columnas fecha (date/fecha), monto (amount/monto/importe),
+          opcional descripción y comercio; separador <code className="text-[11px]">,</code> o{" "}
+          <code className="text-[11px]">;</code>. Montos tipo <code className="text-[11px]">$ 1.234,56</code> (ARS).{" "}
+          <strong>PDF:</strong> Brubank, BBVA, Banco Nación (Nativa), etc. — cargos en <strong>U$S</strong> se convierten con
+          cotización <strong>BCRA</strong>. Los importados <strong>no restan del límite mensual</strong> de gasto en curso.
         </p>
       </div>
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getMonthFinancials, upsertBudgetConfig } from "@/services/budgetService";
 import { syncAlertsForMonth } from "@/services/alertService";
@@ -305,9 +306,9 @@ export async function importStatementCsvAction(formData: FormData): Promise<Impo
       return { ok: false, error: "Seleccioná un archivo CSV o PDF." };
     }
 
-    const maxBytes = 4 * 1024 * 1024;
+    const maxBytes = 8 * 1024 * 1024;
     if (file.size > maxBytes) {
-      return { ok: false, error: "El archivo es demasiado grande (máx. 4 MB)." };
+      return { ok: false, error: "El archivo es demasiado grande (máx. 8 MB)." };
     }
 
     const text = await statementFileToText(file);
@@ -329,11 +330,19 @@ export async function importStatementCsvAction(formData: FormData): Promise<Impo
       rows,
     });
 
-    await refreshAlerts(userId, importMonth, importYear);
-    revalidatePath("/dashboard");
-    revalidatePath("/expenses");
-    revalidatePath("/reports");
-    revalidatePath("/imports");
+    try {
+      await refreshAlerts(userId, importMonth, importYear);
+    } catch (alertErr) {
+      console.error("[importStatement] refreshAlerts", alertErr);
+    }
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath("/expenses");
+      revalidatePath("/reports");
+      revalidatePath("/imports");
+    } catch (revErr) {
+      console.error("[importStatement] revalidatePath", revErr);
+    }
 
     return {
       ok: true,
@@ -341,6 +350,19 @@ export async function importStatementCsvAction(formData: FormData): Promise<Impo
       paymentDueDate: paymentDueDate.toISOString(),
     };
   } catch (e) {
+    console.error("[importStatement]", e);
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      if (e.code === "P2022") {
+        return {
+          ok: false,
+          error:
+            "La base de datos no tiene columnas nuevas (desincronizada). En Vercel debería aplicarse con el deploy; si sigue igual, ejecutá `npx prisma db push` con la misma DATABASE_URL.",
+        };
+      }
+      if (e.code === "P2002") {
+        return { ok: false, error: "Conflicto de datos al guardar (duplicado). Probá de nuevo." };
+      }
+    }
     const msg = e instanceof Error ? e.message : "Error al importar.";
     return { ok: false, error: msg };
   }

@@ -70,6 +70,7 @@ Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a 
 ## Stack
 
 - **Next.js 14** (App Router) · **TypeScript** · **Tailwind CSS**
+- **Server Actions**: límite de cuerpo **8 MB** para subir PDFs de resumen (`next.config.mjs` → `experimental.serverActions.bodySizeLimit`)
 - **Prisma 5** + **PostgreSQL** (Neon u otro; recomendado para local y producción)
 - **shadcn/ui** (Radix) · **React Hook Form** · **Zod** · **Recharts** · **date-fns**
 - **pdf-parse** (texto de PDFs de resumen) · **tesseract.js** (OCR de comprobantes en el cliente al cargar imagen en gastos)
