@@ -111,7 +111,7 @@ export function ExpenseForm({
       )}
       <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-2">
-        <Label>Date</Label>
+        <Label>Fecha</Label>
         <Input type="date" {...form.register("transactionDate")} />
       </div>
       <div className="space-y-2">
@@ -119,13 +119,13 @@ export function ExpenseForm({
         <Input type="number" step="0.01" {...form.register("amount")} />
       </div>
       <div className="space-y-2">
-        <Label>Card</Label>
+        <Label>Tarjeta</Label>
         <Select
           value={form.watch("cardId")}
           onValueChange={(v) => form.setValue("cardId", v)}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Card" />
+            <SelectValue placeholder="Tarjeta" />
           </SelectTrigger>
           <SelectContent>
             {cards.map((c) => (
@@ -137,13 +137,13 @@ export function ExpenseForm({
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>Category</Label>
+        <Label>Categoría</Label>
         <Select
           value={form.watch("categoryId")}
           onValueChange={(v) => form.setValue("categoryId", v)}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Category" />
+            <SelectValue placeholder="Categoría" />
           </SelectTrigger>
           <SelectContent>
             {categories.map((c) => (
@@ -155,19 +155,19 @@ export function ExpenseForm({
         </Select>
       </div>
       <div className="space-y-2 sm:col-span-2">
-        <Label>Merchant</Label>
+        <Label>Comercio</Label>
         <Input {...form.register("merchant")} />
       </div>
       <div className="space-y-2 sm:col-span-2">
-        <Label>Description</Label>
+        <Label>Descripción</Label>
         <Input {...form.register("description")} />
       </div>
       <div className="space-y-2">
-        <Label>Installments</Label>
+        <Label>Cuotas</Label>
         <Input type="number" {...form.register("installments")} />
       </div>
       <div className="space-y-2 sm:col-span-2">
-        <Label>Notes</Label>
+        <Label>Notas</Label>
         <Textarea rows={3} {...form.register("notes")} />
       </div>
       <div className="sm:col-span-2">

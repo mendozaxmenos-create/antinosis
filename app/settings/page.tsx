@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getOrCreateBudgetConfig, listBudgetHistory, sumRegisteredNetIncome } from "@/services/budgetService";
 import { mapStatementPaymentsDueByCalendarMonth } from "@/services/statementPaymentService";
 import { AlertChannelForm } from "@/components/forms/alert-channel-form";
+import { CategoriesManager } from "@/components/forms/categories-manager";
 import { redirect } from "next/navigation";
 import { Cloud } from "lucide-react";
 import { calculateMonthlyLimit } from "@/lib/calculations";
@@ -28,7 +29,7 @@ export default async function SettingsPage({
   const year =
     typeof rawY === "string" && rawY ? Math.max(2000, Math.min(2100, Number(rawY))) : cy;
 
-  const [config, history, totalNet, userPrefs, paymentsByDueMonth] = await Promise.all([
+  const [config, history, totalNet, userPrefs, paymentsByDueMonth, categoriesWithCount] = await Promise.all([
     getOrCreateBudgetConfig(userId, month, year),
     listBudgetHistory(userId, 200),
     sumRegisteredNetIncome(userId),
@@ -37,6 +38,10 @@ export default async function SettingsPage({
       select: { alertChannel: true, alertEmail: true, telegramChatId: true },
     }),
     mapStatementPaymentsDueByCalendarMonth(userId),
+    prisma.category.findMany({
+      orderBy: { name: "asc" },
+      include: { _count: { select: { expenses: true } } },
+    }),
   ]);
 
   const cardPaymentsDueForSelectedMonth = paymentsByDueMonth.get(`${year}-${month}`) ?? 0;
@@ -61,9 +66,30 @@ export default async function SettingsPage({
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
         <p className="text-muted-foreground">
-          Ingresos, límites, alertas y preferencias de notificación.
+          Ingresos, límites, categorías de gastos, alertas y preferencias de notificación.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Categorías de gastos</CardTitle>
+          <CardDescription>
+            Se usan en gastos manuales, importaciones y el gráfico del panel. Las archivadas no aparecen en cargas
+            nuevas; los movimientos viejos siguen mostrando el nombre. Solo podés eliminar una categoría si no tiene
+            gastos asociados.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CategoriesManager
+            initialCategories={categoriesWithCount.map((c) => ({
+              id: c.id,
+              name: c.name,
+              active: c.active,
+              expenseCount: c._count.expenses,
+            }))}
+          />
+        </CardContent>
+      </Card>
 
       <AlertChannelForm
         userId={userId}

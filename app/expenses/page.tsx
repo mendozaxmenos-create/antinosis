@@ -12,6 +12,7 @@ import { DeleteExpenseButton } from "@/components/forms/delete-expense-button";
 import { EditExpenseDialog } from "@/components/forms/edit-expense-dialog";
 import { redirect } from "next/navigation";
 import { expenseWhereTransactionDateInCalendarMonth } from "@/lib/month-transaction-filter";
+import { categoriesWhereForExpenseForms } from "@/lib/category-queries";
 
 function expenseSourceLabel(sourceType: string): string {
   const map: Record<string, string> = {
@@ -30,15 +31,20 @@ export default async function ExpensesPage() {
   }
   const { month, year } = currentMonthYear();
 
-  const [cards, categories, expenses] = await Promise.all([
+  const [cards, expenses] = await Promise.all([
     prisma.creditCard.findMany({ where: { userId, active: true } }),
-    prisma.category.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.expense.findMany({
       where: { ...expenseWhereTransactionDateInCalendarMonth(month, year), card: { userId } },
       include: { card: true, category: true },
       orderBy: { transactionDate: "desc" },
     }),
   ]);
+
+  const usedCategoryIds = expenses.map((e) => e.categoryId);
+  const categories = await prisma.category.findMany({
+    where: categoriesWhereForExpenseForms(usedCategoryIds),
+    orderBy: { name: "asc" },
+  });
 
   return (
     <div className="space-y-8">

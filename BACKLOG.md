@@ -89,6 +89,8 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 **Implementación:** `PDFParse.setWorker()` con URL `file://` a `node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs` (`lib/pdf-worker-path.ts`), llamado antes de `new PDFParse`, y `experimental.serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist", "@napi-rs/canvas"]` en `next.config.mjs` para no forzar el bundle incorrecto del worker.
 
+**Vercel (abr 2026):** el trace de archivos del serverless no incluía `pdf.worker.mjs` ni todo `pdfjs-dist` (el `import()` del fake worker no se ve en el análisis estático). Se añadió `experimental.outputFileTracingIncludes` con `./node_modules/pdfjs-dist/**/*` y `./node_modules/@napi-rs/canvas/**/*` (clave `"**"` para que aplique a las rutas server). Dependencia directa `pdfjs-dist@5.4.296` en `package.json` alineada a `pdf-parse`.
+
 **Relacionado:** polyfills DOM (`lib/pdf-node-polyfills.ts`), import dinámico de `pdf-parse` en `statementFileToText` (`app/actions.ts`).
 
 ---

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getDefaultUserId } from "@/lib/user";
 import { getMonthFinancials, upsertBudgetConfig } from "@/services/budgetService";
 import { syncAlertsForMonth } from "@/services/alertService";
 import { parseStatementFromText } from "@/lib/parse-statement-import";
@@ -455,5 +456,118 @@ export async function importManualStatementAction(formData: FormData): Promise<I
     }
     const msg = e instanceof Error ? e.message : "Error al guardar el resumen manual.";
     return { ok: false, error: msg };
+  }
+}
+
+const categoryNameSchema = z.string().trim().min(1, "Nombre requerido").max(80);
+
+const createCategoryInput = z.object({ name: categoryNameSchema });
+
+export async function createCategoryAction(
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const userId = await getDefaultUserId();
+  if (!userId) return { ok: false, error: "Sesión inválida." };
+  try {
+    const { name } = createCategoryInput.parse(input);
+    await prisma.category.create({ data: { name, active: true } });
+    revalidatePath("/settings");
+    revalidatePath("/expenses");
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: e.errors[0]?.message ?? "Dato inválido." };
+    }
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { ok: false, error: "Ya existe una categoría con ese nombre." };
+    }
+    throw e;
+  }
+}
+
+const updateCategoryInput = z.object({ id: z.string().min(1), name: categoryNameSchema });
+
+export async function updateCategoryAction(
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const userId = await getDefaultUserId();
+  if (!userId) return { ok: false, error: "Sesión inválida." };
+  try {
+    const parsed = updateCategoryInput.parse(input);
+    await prisma.category.update({
+      where: { id: parsed.id },
+      data: { name: parsed.name },
+    });
+    revalidatePath("/settings");
+    revalidatePath("/expenses");
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: e.errors[0]?.message ?? "Dato inválido." };
+    }
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { ok: false, error: "Ya existe una categoría con ese nombre." };
+    }
+    throw e;
+  }
+}
+
+const setCategoryActiveInput = z.object({ id: z.string().min(1), active: z.boolean() });
+
+export async function setCategoryActiveAction(
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const userId = await getDefaultUserId();
+  if (!userId) return { ok: false, error: "Sesión inválida." };
+  try {
+    const parsed = setCategoryActiveInput.parse(input);
+    await prisma.category.update({
+      where: { id: parsed.id },
+      data: { active: parsed.active },
+    });
+    revalidatePath("/settings");
+    revalidatePath("/expenses");
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: e.errors[0]?.message ?? "Dato inválido." };
+    }
+    throw e;
+  }
+}
+
+const deleteCategoryInput = z.object({ id: z.string().min(1) });
+
+export async function deleteCategoryAction(
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const userId = await getDefaultUserId();
+  if (!userId) return { ok: false, error: "Sesión inválida." };
+  try {
+    const { id } = deleteCategoryInput.parse(input);
+    const n = await prisma.expense.count({ where: { categoryId: id } });
+    if (n > 0) {
+      return {
+        ok: false,
+        error: `No se puede eliminar: hay ${n} gasto(s) con esta categoría. Archivala o cambiá esos gastos de categoría.`,
+      };
+    }
+    await prisma.category.delete({ where: { id } });
+    revalidatePath("/settings");
+    revalidatePath("/expenses");
+    revalidatePath("/dashboard");
+    revalidatePath("/reports");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return { ok: false, error: e.errors[0]?.message ?? "Dato inválido." };
+    }
+    throw e;
   }
 }
