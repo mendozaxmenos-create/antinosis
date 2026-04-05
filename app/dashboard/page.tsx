@@ -18,6 +18,7 @@ import {
 } from "@/services/expenseService";
 import { listDashboardAlerts } from "@/services/alertService";
 import { syncAlertsForMonth } from "@/services/alertService";
+import { getStatementPaymentsBreakdownForMonth } from "@/services/statementPaymentService";
 import { format } from "date-fns";
 import { Bell, CalendarClock, PiggyBank, Sparkles, TrendingUp, Wallet } from "lucide-react";
 import { explainBudgetComputation } from "@/lib/calculations";
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
     await getMonthFinancials(userId, month, year);
   await syncAlertsForMonth(userId, month, year, percentConsumed, config.id);
 
-  const [categoryTotals, monthRows, cardSpend, alerts, recentExpenses, totalNetRegistered, monthsWithIncome] =
+  const [categoryTotals, monthRows, cardSpend, alerts, recentExpenses, totalNetRegistered, monthsWithIncome, paymentBreakdown] =
     await Promise.all([
       getCategoryTotalsForMonth(userId, month, year),
       getMonthlySummaries(userId, 6),
@@ -45,6 +46,7 @@ export default async function DashboardPage() {
       listExpensesForMonth(userId, month, year),
       sumRegisteredNetIncome(userId),
       countMonthsWithNetIncome(userId),
+      getStatementPaymentsBreakdownForMonth(userId, month, year),
     ]);
 
   const breakdown = explainBudgetComputation({
@@ -137,9 +139,22 @@ export default async function DashboardPage() {
             <CardHeader className="pb-2">
               <CardDescription className="text-xs font-medium uppercase tracking-wide">Pagos tarjeta (vencen este mes)</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.cardPaymentsDue)}</p>
-              <p className="text-xs text-muted-foreground">Total resúmenes importados</p>
+              <p className="text-xs text-muted-foreground">Total en ARS (pesos del resumen + USD × cotización BCRA al importar)</p>
+              {paymentBreakdown.subtotalUsdOriginal > 0 ? (
+                <div className="rounded-md border border-dashed bg-muted/30 px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
+                  <span className="font-medium text-foreground">Desglose:</span> cargos en pesos{" "}
+                  {formatCurrency(paymentBreakdown.subtotalArsNative)} · USD{" "}
+                  {paymentBreakdown.subtotalUsdOriginal.toLocaleString("es-AR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  → {formatCurrency(paymentBreakdown.subtotalUsdAsArs)} ARS
+                </div>
+              ) : breakdown.cardPaymentsDue > 0 ? (
+                <p className="text-xs text-muted-foreground">Solo movimientos en pesos en los resúmenes importados.</p>
+              ) : null}
             </CardContent>
           </Card>
           <Card className="border-muted">
@@ -242,6 +257,49 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {paymentBreakdown.byCard.length > 0 && (paymentBreakdown.byCard.length > 1 || paymentBreakdown.subtotalUsdOriginal > 0) ? (
+          <Card className="border-muted/80">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Por tarjeta — resúmenes con vencimiento este mes</CardTitle>
+              <CardDescription>
+                Total en ARS por plástico; USD del resumen convertidos con cotización BCRA del día de cada consumo al importar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tarjeta</TableHead>
+                    <TableHead className="text-right">Pesos (ARS)</TableHead>
+                    <TableHead className="text-right">USD</TableHead>
+                    <TableHead className="text-right">USD en ARS</TableHead>
+                    <TableHead className="text-right">Total ARS</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paymentBreakdown.byCard.map((c) => (
+                    <TableRow key={c.cardId}>
+                      <TableCell>
+                        {c.bank} ·••• {c.last4}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(c.arsNative)}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {c.usdOriginal > 0
+                          ? `US$ ${c.usdOriginal.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {c.usdAsArs > 0 ? formatCurrency(c.usdAsArs) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">{formatCurrency(c.totalArs)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ) : null}
       </section>
 
       <div className="grid gap-6 lg:grid-cols-3">

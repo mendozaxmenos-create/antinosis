@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createExpenseAction, updateExpenseAction } from "@/app/actions";
-import { currentMonthYear } from "@/lib/helpers";
 import { useTransition } from "react";
 import type { CreditCard, Category, Expense } from "@prisma/client";
 import { ExpenseImageImport } from "@/components/forms/expense-image-import";
@@ -44,7 +43,6 @@ export function ExpenseForm({
   categories: Category[];
   expense?: Expense;
 }) {
-  const { month, year } = currentMonthYear();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: expense
@@ -76,8 +74,6 @@ export function ExpenseForm({
       const payload = {
         userId,
         ...values,
-        postedMonth: expense?.postedMonth ?? month,
-        postedYear: expense?.postedYear ?? year,
       };
       if (expense) {
         await updateExpenseAction({ ...payload, id: expense.id });

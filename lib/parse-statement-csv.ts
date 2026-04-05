@@ -1,8 +1,12 @@
+import { parseAmountAr } from "@/lib/parse-amount-ar";
+
 export type ParsedStatementRow = {
   transactionDate: Date;
   amount: number;
   description: string;
   merchant: string;
+  /** Si es USD, `amount` es el valor en dólares hasta la importación (se convierte a ARS con cotización BCRA). */
+  currency?: "ARS" | "USD";
 };
 
 function normalizeHeader(h: string): string {
@@ -37,9 +41,34 @@ function splitRow(line: string, delimiter: string): string[] {
 }
 
 const DATE_KEYS = ["date", "fecha", "transactiondate", "transaction_date"];
-const AMOUNT_KEYS = ["amount", "monto", "importe", "debit", "cargo"];
+const AMOUNT_KEYS = ["amount", "monto", "importe", "debit", "cargo", "pesos", "ars"];
+const USD_AMOUNT_KEYS = [
+  "usd",
+  "amount_usd",
+  "monto_usd",
+  "importe_usd",
+  "dolar",
+  "dolares",
+  "dolares_usd",
+  "u$s",
+  "importeusd",
+];
 const DESC_KEYS = ["description", "descripcion", "detalle", "concepto", "memo"];
 const MERCHANT_KEYS = ["merchant", "comercio", "establecimiento", "payee"];
+
+function looksLikeUsdAmountCell(s: string): boolean {
+  const t = s.trim();
+  if (!t) return false;
+  // No usar solo "$" — en AR suele ser pesos; conviven U$S / USD explícitos.
+  return /\b(?:u\$s|u\$|usd|us\s*\$|d[oó]lares?)\b/i.test(t);
+}
+
+function stripUsdMarkersForParse(s: string): string {
+  return s
+    .replace(/^\s*(?:u\$s|u\$|usd|us\$)\s*/i, "")
+    .replace(/\s*(?:usd|u\$s)\s*$/i, "")
+    .trim();
+}
 
 function findColumnIndex(headers: string[], keys: string[]): number {
   const norm = headers.map(normalizeHeader);
@@ -68,10 +97,7 @@ function parseDate(s: string): Date | null {
 }
 
 function parseAmount(s: string): number | null {
-  const t = s.trim().replace(/\s/g, "").replace(",", ".");
-  if (!t) return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? Math.abs(n) : null;
+  return parseAmountAr(s);
 }
 
 /**
@@ -86,28 +112,54 @@ export function parseStatementCsv(text: string): ParsedStatementRow[] {
   const headers = splitRow(lines[0]!, delimiter).map((h) => normalizeHeader(h.replace(/^"|"$/g, "")));
   const iDate = findColumnIndex(headers, DATE_KEYS);
   const iAmount = findColumnIndex(headers, AMOUNT_KEYS);
+  const iUsd = findColumnIndex(headers, USD_AMOUNT_KEYS);
   const iDesc = findColumnIndex(headers, DESC_KEYS);
   const iMerch = findColumnIndex(headers, MERCHANT_KEYS);
 
-  if (iDate < 0 || iAmount < 0) return [];
+  if (iDate < 0 || (iAmount < 0 && iUsd < 0)) return [];
 
   const rows: ParsedStatementRow[] = [];
   for (let li = 1; li < lines.length; li++) {
     const cells = splitRow(lines[li]!, delimiter).map((c) => c.replace(/^"|"$/g, ""));
     const dateStr = cells[iDate] ?? "";
-    const amountStr = cells[iAmount] ?? "";
+    const amountStr = iAmount >= 0 ? (cells[iAmount] ?? "") : "";
+    const usdStr = iUsd >= 0 ? (cells[iUsd] ?? "") : "";
     const description = iDesc >= 0 ? (cells[iDesc] ?? "").trim() : "";
     const merchant = iMerch >= 0 ? (cells[iMerch] ?? "").trim() : "";
 
     const transactionDate = parseDate(dateStr);
-    const amount = parseAmount(amountStr);
-    if (!transactionDate || amount == null || amount <= 0) continue;
+    if (!transactionDate) continue;
+
+    let amount: number | null = null;
+    let currency: "ARS" | "USD" | undefined;
+
+    const usdPlain = parseAmount(usdStr);
+    if (usdPlain != null && usdPlain > 0) {
+      amount = usdPlain;
+      currency = "USD";
+    } else if (looksLikeUsdAmountCell(amountStr)) {
+      const stripped = stripUsdMarkersForParse(amountStr);
+      const n = parseAmount(stripped);
+      if (n != null && n > 0) {
+        amount = n;
+        currency = "USD";
+      }
+    } else {
+      const n = parseAmount(amountStr);
+      if (n != null && n > 0) {
+        amount = n;
+        currency = "ARS";
+      }
+    }
+
+    if (amount == null) continue;
 
     rows.push({
       transactionDate,
       amount,
       description: description || merchant || "Imported",
       merchant: merchant || description || "",
+      ...(currency === "USD" ? { currency: "USD" as const } : {}),
     });
   }
 

@@ -1,0 +1,12 @@
+import type { ParsedStatementRow } from "@/lib/parse-statement-csv";
+import { parseStatementCsv } from "@/lib/parse-statement-csv";
+import { looksLikeBbvaStatementText, parseBbvaStatementText } from "@/lib/parse-bbva-statement";
+import { parseBrubankStatementText } from "@/lib/parse-brubank-statement";
+
+/** CSV genérico; si no hay filas, PDF/texto de banco (BBVA, Brubank, …). */
+export function parseStatementFromText(text: string): ParsedStatementRow[] {
+  const csv = parseStatementCsv(text);
+  if (csv.length > 0) return csv;
+  if (looksLikeBbvaStatementText(text)) return parseBbvaStatementText(text);
+  return parseBrubankStatementText(text);
+}

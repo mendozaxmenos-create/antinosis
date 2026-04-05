@@ -4,6 +4,49 @@ import { computePaymentDueDate } from "@/lib/payment-due-date";
 import type { ParsedStatementRow } from "@/lib/parse-statement-csv";
 import { createPaymentDueCalendarEvent } from "@/lib/google-calendar";
 import { deliverExternalAlerts } from "@/lib/notify-external";
+import { getUsdArsRateBcraOfficial } from "@/lib/bcra-usd-ars-rate";
+
+type ResolvedImportRow = {
+  row: ParsedStatementRow;
+  amountArs: number;
+  originalCurrency: string | null;
+  originalAmount: number | null;
+  notes: string;
+};
+
+async function resolveImportRows(fileName: string, rows: ParsedStatementRow[]): Promise<ResolvedImportRow[]> {
+  const cache = new Map<string, { rate: number; rateDate: string }>();
+  const out: ResolvedImportRow[] = [];
+
+  for (const row of rows) {
+    const baseNotes = `Importado desde ${fileName}`;
+    if (row.currency === "USD") {
+      const key = row.transactionDate.toISOString().slice(0, 10);
+      let fx = cache.get(key);
+      if (!fx) {
+        fx = await getUsdArsRateBcraOfficial(row.transactionDate);
+        cache.set(key, fx);
+      }
+      const amountArs = Math.round(row.amount * fx.rate * 100) / 100;
+      out.push({
+        row,
+        amountArs,
+        originalCurrency: "USD",
+        originalAmount: row.amount,
+        notes: `${baseNotes} · USD ${row.amount.toFixed(2)} × ${fx.rate.toFixed(2)} ARS/USD (BCRA ${fx.rateDate})`,
+      });
+    } else {
+      out.push({
+        row,
+        amountArs: row.amount,
+        originalCurrency: null,
+        originalAmount: null,
+        notes: baseNotes,
+      });
+    }
+  }
+  return out;
+}
 
 export async function importStatementRows(input: {
   userId: string;
@@ -23,6 +66,8 @@ export async function importStatementRows(input: {
 
   const paymentDueDate = computePaymentDueDate(input.importYear, input.importMonth, card.dueDay);
 
+  const resolved = await resolveImportRows(input.fileName, input.rows);
+
   const result = await prisma.$transaction(async (tx) => {
     const stmt = await tx.statementImport.create({
       data: {
@@ -39,23 +84,31 @@ export async function importStatementRows(input: {
     });
 
     let created = 0;
-    for (const row of input.rows) {
+    for (const item of resolved) {
+      const { row } = item;
       const catName = categorizeFromText(row.description, row.merchant);
       const categoryId = byName.get(catName) ?? byName.get("Other");
       if (!categoryId) continue;
 
+      const td = row.transactionDate;
+      const postedMonth = td.getMonth() + 1;
+      const postedYear = td.getFullYear();
+
       await tx.expense.create({
         data: {
           transactionDate: row.transactionDate,
-          postedMonth: input.importMonth,
-          postedYear: input.importYear,
-          amount: row.amount,
+          postedMonth,
+          postedYear,
+          amount: item.amountArs,
+          originalCurrency: item.originalCurrency,
+          originalAmount: item.originalAmount,
           description: row.description,
           merchant: row.merchant,
           installments: 1,
-          notes: `Importado desde ${input.fileName}`,
+          notes: item.notes,
           sourceType: "imported_file",
           reconciliationStatus: "pending",
+          statementImportId: stmt.id,
           cardId: input.cardId,
           categoryId,
         },

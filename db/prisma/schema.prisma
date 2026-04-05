@@ -90,6 +90,10 @@ model Expense {
   postedMonth          Int
   postedYear           Int
   amount               Float
+  /// Moneda original del movimiento importado (p. ej. USD antes de convertir a ARS con cotización BCRA)
+  originalCurrency     String?
+  /// Monto en moneda original cuando aplica (ej. dólares del resumen)
+  originalAmount       Float?
   description          String?
   merchant             String?
   installments         Int                    @default(1)
@@ -98,6 +102,9 @@ model Expense {
   sourceType           String
   /// pending | matched | unmatched | adjusted
   reconciliationStatus String                 @default("pending")
+  /// Resumen del cual proviene (totales a pagar por archivo importado)
+  statementImportId    String?
+  statementImport      StatementImport?       @relation(fields: [statementImportId], references: [id], onDelete: SetNull)
   cardId               String
   card                 CreditCard             @relation(fields: [cardId], references: [id], onDelete: Cascade)
   categoryId           String
@@ -106,6 +113,8 @@ model Expense {
 
   @@index([postedYear, postedMonth])
   @@index([cardId])
+  @@index([transactionDate])
+  @@index([statementImportId])
 }
 
 model AlertEvent {
@@ -146,6 +155,7 @@ model StatementImport {
   /// ID del evento en Google Calendar (si se creó al importar)
   googleCalendarEventId String?
   createdAt   DateTime              @default(now())
+  expenses    Expense[]
 }
 
 model ReconciliationResult {

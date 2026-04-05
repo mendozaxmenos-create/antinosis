@@ -35,7 +35,7 @@ Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a 
 | **Tarjetas** (`/cards`) | Alta/edición/baja: banco, nombre, marca, últimos 4, días de cierre y vencimiento. |
 | **Gastos** (`/expenses`) | Movimientos **manuales** que cuentan para el límite del mes. |
 | **Informes** (`/reports`) | Comparativas mensuales, torta por categoría, gasto por tarjeta. |
-| **Resúmenes** (`/imports`) | Importación **CSV** con parser flexible; categorización heurística; alerta de **vencimiento de pago**; opcional evento en **Google Calendar**. |
+| **Resúmenes** (`/imports`) | Importación **CSV** o **PDF** del resumen: parser CSV (montos AR `$ 1.234,56`) y, para **Brubank**, extracción de texto del PDF y lectura de la tabla de movimientos (USD marcados como *(USD)*). Categorización heurística; alerta de **vencimiento de pago**; opcional evento en **Google Calendar**. |
 
 ### Alertas y canales
 
@@ -174,16 +174,20 @@ Cada **push a `main`** suele disparar un deploy automático (`npm run sync:githu
 3. **`/cards`**: tarjetas con cierre y vencimiento.  
 4. **`/expenses`**: gastos manuales del mes.  
 5. **`/dashboard`**: visión general y KPIs.  
-6. **`/imports`**: CSV de movimientos; opcional Calendar conectado.  
+6. **`/imports`**: CSV o PDF del resumen (incl. Brubank); opcional Calendar conectado.  
 7. **`/reports`**: histórico y comparativas.
 
 ### CSV (cabeceras reconocidas)
 
 - Fecha: `date`, `fecha`, …  
-- Monto: `amount`, `monto`, `importe`, …  
+- Monto: `amount`, `monto`, `importe`, … (formato argentino: `$ 1.234,56`)  
 - Texto: `description`, `merchant`, `comercio`, …  
 
 Separador: coma o punto y coma.
+
+### PDF (Brubank)
+
+Subí el archivo **tal cual** lo exporta la app (resumen de tarjeta). Se extrae el texto del PDF y se interpretan las filas `Fecha / #Ref / Descripción / …` con montos en pesos o `U$S`. Los consumos en **dólares** se pasan a pesos con la **cotización oficial del USD publicada por el BCRA** para esa fecha (API pública `Cotizaciones?fecha=`; si el día no tiene dato, se usa el último día hábil anterior con cotización). Ese criterio es el estándar de referencia que suelen usar los bancos para tarjeta. No hace falta convertir a CSV.
 
 ---
 

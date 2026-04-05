@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { ExpenseForm } from "@/components/forms/expense-form";
 import { DeleteExpenseButton } from "@/components/forms/delete-expense-button";
 import { redirect } from "next/navigation";
+import { expenseWhereTransactionDateInCalendarMonth } from "@/lib/month-transaction-filter";
 
 export default async function ExpensesPage() {
   const userId = await getDefaultUserId();
@@ -22,7 +23,7 @@ export default async function ExpensesPage() {
     prisma.creditCard.findMany({ where: { userId, active: true } }),
     prisma.category.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.expense.findMany({
-      where: { postedMonth: month, postedYear: year, card: { userId } },
+      where: { ...expenseWhereTransactionDateInCalendarMonth(month, year), card: { userId } },
       include: { card: true, category: true },
       orderBy: { transactionDate: "desc" },
     }),
@@ -95,7 +96,7 @@ export default async function ExpensesPage() {
                   </TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(e.amount)}</TableCell>
                   <TableCell className="text-right">
-                    <DeleteExpenseButton id={e.id} userId={userId} month={e.postedMonth} year={e.postedYear} />
+                    <DeleteExpenseButton id={e.id} userId={userId} />
                   </TableCell>
                 </TableRow>
               ))}

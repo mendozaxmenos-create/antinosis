@@ -5,8 +5,25 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getMonthFinancials, upsertBudgetConfig } from "@/services/budgetService";
 import { syncAlertsForMonth } from "@/services/alertService";
-import { parseStatementCsv } from "@/lib/parse-statement-csv";
+import { PDFParse } from "pdf-parse";
+import { parseStatementFromText } from "@/lib/parse-statement-import";
 import { importStatementRows } from "@/services/statementImportService";
+
+async function statementFileToText(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  const type = file.type?.toLowerCase() ?? "";
+  if (type.includes("pdf") || name.endsWith(".pdf")) {
+    const buf = Buffer.from(await file.arrayBuffer());
+    const parser = new PDFParse({ data: buf });
+    try {
+      const result = await parser.getText();
+      return result.text;
+    } finally {
+      await parser.destroy();
+    }
+  }
+  return file.text();
+}
 
 async function refreshAlerts(userId: string, month: number, year: number) {
   const { percentConsumed, config } = await getMonthFinancials(userId, month, year);
@@ -45,8 +62,6 @@ const expenseBase = z.object({
   notes: z.string().optional(),
   cardId: z.string().min(1),
   categoryId: z.string().min(1),
-  postedMonth: z.coerce.number().min(1).max(12),
-  postedYear: z.coerce.number(),
 });
 
 export async function createExpenseAction(input: z.infer<typeof expenseBase>) {
@@ -56,11 +71,13 @@ export async function createExpenseAction(input: z.infer<typeof expenseBase>) {
   });
   if (!card) throw new Error("Invalid card for user");
   const transactionDate = new Date(data.transactionDate);
+  const postedMonth = transactionDate.getMonth() + 1;
+  const postedYear = transactionDate.getFullYear();
   await prisma.expense.create({
     data: {
       transactionDate,
-      postedMonth: data.postedMonth,
-      postedYear: data.postedYear,
+      postedMonth,
+      postedYear,
       amount: data.amount,
       description: data.description,
       merchant: data.merchant,
@@ -72,7 +89,7 @@ export async function createExpenseAction(input: z.infer<typeof expenseBase>) {
       categoryId: data.categoryId,
     },
   });
-  await refreshAlerts(data.userId, data.postedMonth, data.postedYear);
+  await refreshAlerts(data.userId, postedMonth, postedYear);
   revalidatePath("/dashboard");
   revalidatePath("/expenses");
   revalidatePath("/reports");
@@ -83,12 +100,14 @@ const expenseUpdate = expenseBase.extend({ id: z.string().min(1) });
 export async function updateExpenseAction(input: z.infer<typeof expenseUpdate>) {
   const data = expenseUpdate.parse(input);
   const transactionDate = new Date(data.transactionDate);
+  const postedMonth = transactionDate.getMonth() + 1;
+  const postedYear = transactionDate.getFullYear();
   await prisma.expense.update({
     where: { id: data.id },
     data: {
       transactionDate,
-      postedMonth: data.postedMonth,
-      postedYear: data.postedYear,
+      postedMonth,
+      postedYear,
       amount: data.amount,
       description: data.description,
       merchant: data.merchant,
@@ -98,22 +117,27 @@ export async function updateExpenseAction(input: z.infer<typeof expenseUpdate>) 
       categoryId: data.categoryId,
     },
   });
-  await refreshAlerts(data.userId, data.postedMonth, data.postedYear);
+  await refreshAlerts(data.userId, postedMonth, postedYear);
   revalidatePath("/dashboard");
   revalidatePath("/expenses");
   revalidatePath("/reports");
 }
 
-export async function deleteExpenseAction(input: { id: string; userId: string; month: number; year: number }) {
+export async function deleteExpenseAction(input: { id: string; userId: string }) {
   const schema = z.object({
     id: z.string(),
     userId: z.string(),
-    month: z.coerce.number(),
-    year: z.coerce.number(),
   });
   const data = schema.parse(input);
+  const existing = await prisma.expense.findFirst({
+    where: { id: data.id, card: { userId: data.userId } },
+  });
+  if (!existing) throw new Error("Gasto no encontrado");
+  const td = existing.transactionDate;
+  const month = td.getMonth() + 1;
+  const year = td.getFullYear();
   await prisma.expense.delete({ where: { id: data.id } });
-  await refreshAlerts(data.userId, data.month, data.year);
+  await refreshAlerts(data.userId, month, year);
   revalidatePath("/dashboard");
   revalidatePath("/expenses");
   revalidatePath("/reports");
@@ -278,21 +302,21 @@ export async function importStatementCsvAction(formData: FormData): Promise<Impo
     }
 
     if (!(file instanceof File) || file.size === 0) {
-      return { ok: false, error: "Seleccioná un archivo CSV." };
+      return { ok: false, error: "Seleccioná un archivo CSV o PDF." };
     }
 
-    const maxBytes = 2 * 1024 * 1024;
+    const maxBytes = 4 * 1024 * 1024;
     if (file.size > maxBytes) {
-      return { ok: false, error: "El archivo es demasiado grande (máx. 2 MB)." };
+      return { ok: false, error: "El archivo es demasiado grande (máx. 4 MB)." };
     }
 
-    const text = await file.text();
-    const rows = parseStatementCsv(text);
+    const text = await statementFileToText(file);
+    const rows = parseStatementFromText(text);
     if (rows.length === 0) {
       return {
         ok: false,
         error:
-          "No se encontraron filas válidas. Cabeceras: fecha (date/fecha), monto (amount/monto), descripción o comercio. Separador , o ;.",
+          "No se encontraron movimientos. Probá: CSV con columnas fecha y monto (coma o punto y coma), o el PDF del resumen de Brubank tal cual lo descargás de la app.",
       };
     }
 

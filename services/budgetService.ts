@@ -7,6 +7,7 @@ import {
 } from "@/lib/calculations";
 import { filterExpensesForBudgetLimit, isExpenseAgainstBudget } from "@/lib/expense-scope";
 import { sumStatementPaymentsDueInMonth } from "@/services/statementPaymentService";
+import { expenseWhereTransactionDateInCalendarMonth } from "@/lib/month-transaction-filter";
 
 export async function getOrCreateBudgetConfig(userId: string, month: number, year: number) {
   const existing = await prisma.monthlyBudgetConfig.findUnique({
@@ -170,8 +171,7 @@ export async function getMonthFinancials(userId: string, month: number, year: nu
   const cardPaymentsDueInMonth = await sumStatementPaymentsDueInMonth(userId, month, year);
   const expensesAll = await prisma.expense.findMany({
     where: {
-      postedMonth: month,
-      postedYear: year,
+      ...expenseWhereTransactionDateInCalendarMonth(month, year),
       card: { userId },
     },
   });

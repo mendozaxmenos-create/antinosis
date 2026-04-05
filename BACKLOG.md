@@ -34,7 +34,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 |--------|----------------|
 | **Dashboard** | KPIs: neto, Soledad, **pagos tarjeta con vencimiento en el mes** (suma de resúmenes importados), **base para ahorro**, % ahorro, monto ahorro, límite en curso, gasto manual, importado del mes contable, saldo vs límite, histórico ingresos; gauge; categorías/tarjeta; alertas; insights |
 | **Configuración** (`/settings`) | Mes/año, sueldo neto, efectivo a Soledad, % ahorro (sobre base ya descontados vencimientos del mes), tope manual, umbrales; **vista previa** con desglose incl. pagos de tarjeta del mes; evolución y tabla histórica (límite coherente con vencimientos); canal de alertas (app / Telegram / email); texto datos en la nube |
-| **Cards / Expenses / Reports / Imports** | CRUD y reportes; **alta de gasto con imagen + OCR** (`tesseract.js` en cliente, `lib/parse-receipt-ocr-text.ts`, heurística Mercado Pago: “Para”, fechas en español, montos AR); import CSV; Google Calendar OAuth en imports |
+| **Cards / Expenses / Reports / Imports** | CRUD y reportes; **alta de gasto con imagen + OCR** (`tesseract.js` en cliente, `lib/parse-receipt-ocr-text.ts`, heurística Mercado Pago); **import resúmenes CSV o PDF** (`pdf-parse` + `parse-brubank-statement.ts` para Brubank; CSV con `parseAmountAr` para montos AR); Google Calendar OAuth en imports |
 | **Alertas** | Umbrales (gasto manual vs límite); vencimientos por import; mensajes en español en BD; **replicación** opcional a Telegram (`TELEGRAM_BOT_TOKEN` + chat id) o email (Resend: `RESEND_API_KEY`, `RESEND_FROM`) |
 | **Google Calendar** | OAuth, evento de vencimiento al importar si hay token |
 | **UI móvil** | Botón **Actualizar** en cabecera (recarga página; no depende del menú del navegador) |
@@ -66,8 +66,11 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | **Single-tenant** | Un solo perfil vía `/setup`; no hay multi-cuenta. |
 | **i18n** | Mezcla ES/EN en algunas etiquetas o mensajes legacy. |
 | **Moneda** | `formatCurrency` orientado a USD; sin `NEXT_PUBLIC_CURRENCY` / ARS. |
+| **Cuotas** | Sin seguimiento por cuota: hoy los movimientos en cuotas no se proyectan mes a mes (importe restante, N de cuota, vencimiento por mes). Ver pendiente P1. |
+| **Bonificaciones / reintegros** | En resúmenes suelen aparecer como BONIF, promos o créditos; hoy el import puede ignorarlos. Pendiente: capturarlos y un KPI dedicado (ver P1). |
+| **Fidelización (millas / puntos)** | Sin tracking de programas tipo Millas BBVA, Aerolíneas Plus, etc.; pendiente modelo + KPI (ver P1). |
 | **Tests** | Sin e2e/unit automatizados. |
-| **PDF** | No hay import de PDF de resumen; solo CSV. |
+| **PDF** | Import de **PDF de resumen Brubank** implementado; otros bancos: CSV o ampliar parsers. |
 | **Conciliación** | Modelo y datos; flujo “matched/unmatched” puede profundizarse. |
 | **WhatsApp** | No integrado (API Meta/Twilio); documentado en UI. |
 
@@ -84,11 +87,14 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ### P1 — Producto
 
-5. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
-6. **Categorías** — CRUD en UI (hoy vienen del seed).
-7. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
-8. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
-9. **Prisma Migrate** — `migrate deploy` en release o documentación estricta de `db push` manual.
+5. **Compras en cuotas** — Vista o apartado que liste compras financiadas: cuotas totales, cuota actual, importe pendiente por mes de vencimiento (alineado al cierre/resumen de la tarjeta). Hoy el import guarda `installments` por defecto en 1; conviene parser por banco + modelo de “plan de cuotas” si hace falta.
+6. **Bonificaciones y reintegros en resúmenes** — Campo o entidad para movimientos de crédito del resumen (promociones del banco, BONIF, reintegros por compra). Sirve para **otro KPI**: reintegros del período, “ahorro efectivo” vs consumo bruto, evolución mes a mes. Los parsers hoy suelen descartar importes no positivos; habría que persistirlos aparte o con signo/clarificados.
+7. **Programas de fidelización** — Trackear saldos o movimientos de **Millas BBVA**, **Aerolíneas Plus**, u otros programas vinculados a la tarjeta (carga manual o extracto cuando exista). **Otro KPI** en dashboard: puntos/millas del mes, acumulado, vencimientos si aplica.
+8. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
+9. **Categorías** — CRUD en UI (hoy vienen del seed).
+10. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
+11. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
+12. **Prisma Migrate** — `migrate deploy` en release o documentación estricta de `db push` manual.
 
 ### QA / validación manual (pendiente de confirmar en tu entorno)
 
@@ -96,11 +102,11 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ### P2 — Calidad y escala
 
-10. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
-11. **Observabilidad** — Logs en imports/OAuth; página 500 amigable.
-12. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
-13. **Export** — CSV/Excel de gastos por rango.
-14. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
+13. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
+14. **Observabilidad** — Logs en imports/OAuth; página 500 amigable.
+15. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
+16. **Export** — CSV/Excel de gastos por rango.
+17. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
 
 ---
 
@@ -108,7 +114,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Listo | Pendiente destacado |
 |-------|----------------------|
-| Ingresos/límites con **vencimientos de tarjeta en el mes**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
+| Ingresos/límites con **vencimientos de tarjeta en el mes**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, **bonificaciones/reintegros y KPI**, **millas/puntos y KPI**, cuotas, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
 
 ---
 

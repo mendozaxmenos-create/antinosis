@@ -104,13 +104,21 @@ export function StatementUploadForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="csv">Archivo CSV</Label>
-        <Input id="csv" name="file" type="file" accept=".csv,text/csv" required />
+        <Label htmlFor="csv">Archivo CSV o PDF</Label>
+        <Input
+          id="csv"
+          name="file"
+          type="file"
+          accept=".csv,text/csv,application/pdf,.pdf"
+          required
+        />
         <p className="text-xs text-muted-foreground">
-          Columnas: <strong>fecha</strong> (date/fecha), <strong>monto</strong> (amount/monto), opcional{" "}
-          <strong>descripción</strong> y <strong>comercio</strong>. Se categorizan para el panel, pero{" "}
-          <strong>no restan del límite mensual</strong> (el cierre del resumen suele estar por encima de tu tope). Más
-          adelante: comprobantes reenviados podrían contar como gasto en curso.
+          <strong>CSV:</strong> columnas fecha (date/fecha), monto (amount/monto/importe), opcional descripción y comercio;
+          separador <code className="text-[11px]">,</code> o <code className="text-[11px]">;</code>. Montos tipo{" "}
+          <code className="text-[11px]">$ 1.234,56</code> (ARS). <strong>Brubank (PDF):</strong> cargos en{" "}
+          <strong>U$S</strong> se convierten a pesos con la <strong>cotización USD oficial del BCRA</strong> (día hábil;
+          si falta cotización, el día anterior con dato). Ese ARS suma al total a pagar y al panel. Los importados{" "}
+          <strong>no restan del límite mensual</strong> de gasto en curso.
         </p>
       </div>
 

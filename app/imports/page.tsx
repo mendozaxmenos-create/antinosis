@@ -52,9 +52,10 @@ export default async function ImportsPage({
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Importar resúmenes</h1>
         <p className="text-muted-foreground max-w-3xl">
-          Subí un CSV del resumen: se registran movimientos categorizados y (si conectaste Google) un evento de
-          vencimiento. Eso <strong>no descuenta del límite mensual</strong>: el límite es solo para el gasto en curso que
-          cargás a mano. Después podemos refinar conciliación y comprobantes.
+          Subí un <strong>CSV</strong> o el <strong>PDF</strong> del resumen (p. ej. Brubank): se registran movimientos
+          categorizados y (si conectaste Google) un evento de vencimiento. Eso{" "}
+          <strong>no descuenta del límite de gasto en curso</strong>; el total a pagar por vencimiento en el mes sí entra
+          en el cálculo del panel cuando importaste el resumen.
         </p>
       </div>
 
@@ -91,7 +92,7 @@ export default async function ImportsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Subir CSV</CardTitle>
+          <CardTitle>Subir CSV o PDF</CardTitle>
           <CardDescription>
             El límite en Presupuesto aplica solo a cargas <strong>manuales</strong> (gasto en curso). Lo importado acá es
             registro + calendario, no resta del tope.

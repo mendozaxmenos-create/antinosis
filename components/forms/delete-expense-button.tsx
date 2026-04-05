@@ -7,13 +7,9 @@ import { deleteExpenseAction } from "@/app/actions";
 export function DeleteExpenseButton({
   id,
   userId,
-  month,
-  year,
 }: {
   id: string;
   userId: string;
-  month: number;
-  year: number;
 }) {
   const [pending, start] = useTransition();
   return (
@@ -23,7 +19,7 @@ export function DeleteExpenseButton({
       size="sm"
       className="text-destructive"
       disabled={pending}
-      onClick={() => start(async () => deleteExpenseAction({ id, userId, month, year }))}
+      onClick={() => start(async () => deleteExpenseAction({ id, userId }))}
     >
       {pending ? "…" : "Delete"}
     </Button>

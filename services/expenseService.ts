@@ -9,12 +9,12 @@ import {
 import type { MonthSummary } from "@/lib/calculations";
 import { filterExpensesForBudgetLimit, isExpenseAgainstBudget } from "@/lib/expense-scope";
 import { mapStatementPaymentsDueByCalendarMonth } from "@/services/statementPaymentService";
+import { expenseWhereTransactionDateInCalendarMonth } from "@/lib/month-transaction-filter";
 
 export async function listExpensesForMonth(userId: string, month: number, year: number) {
   return prisma.expense.findMany({
     where: {
-      postedMonth: month,
-      postedYear: year,
+      ...expenseWhereTransactionDateInCalendarMonth(month, year),
       card: { userId },
     },
     include: { card: true, category: true },
@@ -26,8 +26,7 @@ export async function listExpensesForMonth(userId: string, month: number, year: 
 export async function getCategoryTotalsForMonth(userId: string, month: number, year: number) {
   const expenses = await prisma.expense.findMany({
     where: {
-      postedMonth: month,
-      postedYear: year,
+      ...expenseWhereTransactionDateInCalendarMonth(month, year),
       card: { userId },
     },
     include: { category: true },
@@ -53,7 +52,7 @@ export async function getMonthlySummaries(
       where: { userId_month_year: { userId, month, year } },
     });
     const expenses = await prisma.expense.findMany({
-      where: { postedMonth: month, postedYear: year, card: { userId } },
+      where: { ...expenseWhereTransactionDateInCalendarMonth(month, year), card: { userId } },
     });
     const cardPaymentsDueInMonth = paymentsByDueMonth.get(`${year}-${month}`) ?? 0;
     const budget = config
@@ -88,7 +87,7 @@ export async function getMonthlySummaries(
 export async function spendingByCardForMonth(userId: string, month: number, year: number) {
   const expenses = filterExpensesForBudgetLimit(
     await prisma.expense.findMany({
-      where: { postedMonth: month, postedYear: year, card: { userId } },
+      where: { ...expenseWhereTransactionDateInCalendarMonth(month, year), card: { userId } },
       include: { card: true },
     }),
   );
