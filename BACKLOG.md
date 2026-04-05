@@ -24,7 +24,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | Área | Qué incluye |
 |------|-------------|
 | **Stack** | Next.js 14 (App Router), Prisma 5, PostgreSQL (Neon), deploy Vercel |
-| **Build** | `prisma generate && next build` — **sin** `db push` en Vercel (esquema se aplica con `npx prisma db push` desde tu PC contra Neon) |
+| **Build** | `scripts/vercel-build.js`: en **Vercel** corre `prisma db push` + `generate` + `next build`; en local solo `generate` + `next build`. `DATABASE_URL` obligatoria en Vercel para el push. |
 | **Esquema** | Usuario (alertas: canal, email, Telegram; OAuth Google Calendar), tarjetas, categorías, gastos (incl. `statementImportId` opcional hacia `StatementImport`), `MonthlyBudgetConfig`, `StatementImport` (vencimiento, evento Calendar), conciliación, `AlertEvent` |
 | **Seed** | Solo categorías (`npm run db:seed`); sin datos de demo |
 | **Setup** | `/setup` primer usuario; `db:wipe` / `db:wipe:production` limpia datos de usuario |
@@ -99,7 +99,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 10. **Categorías** — CRUD en UI (hoy vienen del seed).
 11. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
 12. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
-13. **Prisma Migrate** — `migrate deploy` en release o documentación estricta de `db push` manual.
+13. **Prisma Migrate** — Opcional: pasar de `db push` en deploy a **migraciones versionadas** (`migrate deploy`) para equipos más grandes; hoy el esquema se aplica en cada build de Vercel.
 
 ### QA / validación manual (pendiente de confirmar en tu entorno)
 

@@ -125,7 +125,7 @@ Copiá `.env.example` a `.env`. **No subas `.env`** al repositorio.
 |---------|-------------|
 | `npm run dev` | Desarrollo en `localhost` |
 | `npm run dev:lan` | Desarrollo en `0.0.0.0:3000` (red local) |
-| `npm run build` | `prisma generate` + `next build` (**sin** `db push`; Vercel no modifica el esquema en el build) |
+| `npm run build` | En **local**: `prisma generate` + `next build`. En **Vercel** (`VERCEL=1`): antes corre **`prisma db push`** automático y luego genera + compila (ver `scripts/vercel-build.js`). |
 | `npm run start` | Producción (tras `build`) |
 | `npm run lint` | ESLint |
 | `npm run db:push` | Aplicar `schema.prisma` a la base (desarrollo o contra Neon cuando cambie el modelo) |
@@ -143,9 +143,9 @@ Tras `npm install` corre `postinstall` → `prisma generate`.
 ## Deploy (Vercel)
 
 1. Repo en **GitHub** conectado a Vercel.
-2. **Build**: por defecto `npm run build` (ya incluye `prisma generate`).
-3. **Variables** en el proyecto Vercel: como mínimo `DATABASE_URL` y `NEXT_PUBLIC_APP_URL` (URL real del deploy). Opcional: Google, Telegram, Resend.
-4. **Esquema de base**: tras cambiar `schema.prisma`, ejecutá **`npx prisma db push`** localmente apuntando a la misma base que usa producción (no en el build de Vercel).
+2. **Build**: `npm run build` ejecuta `scripts/vercel-build.js`. En **Vercel** aplica automáticamente **`prisma db push`** contra la base configurada (necesitás **`DATABASE_URL`** en variables de entorno del proyecto). En tu PC, `npm run build` **no** hace `db push`; para alinear la base local usá `npm run db:push`.
+3. **Variables** en el proyecto Vercel: como mínimo **`DATABASE_URL`** (obligatoria para que el build aplique el esquema) y `NEXT_PUBLIC_APP_URL` (URL real del deploy). Opcional: Google, Telegram, Resend.
+4. **Previews / ramas**: si un deploy de preview usa la **misma** `DATABASE_URL` que producción, cada build también ejecutará `db push` (el esquema queda al día; conviene que sea consciente o usar otra base para previews).
 5. **Seed / primer usuario**: categorías con `db:seed` si hace falta; usuario inicial desde **`/setup`** en el navegador. Para poblar producción sin abrir la app en local: `db:seed:production` con env descargado.
 
 Cada **push a `main`** suele disparar un deploy automático (`npm run sync:github` o push manual).
