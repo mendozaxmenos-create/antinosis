@@ -4,8 +4,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
 import { getDefaultUserId } from "@/lib/user";
-import { currentMonthYear } from "@/lib/helpers";
-import { formatCurrency } from "@/lib/helpers";
+import { defaultExpenseDateForBudgetMonth, formatCurrency } from "@/lib/helpers";
+import { parseMonthYearFromSearchParams } from "@/lib/parse-month-year-params";
+import { MonthYearUrlNav } from "@/components/month-year-url-nav";
 import { format } from "date-fns";
 import { ExpenseForm } from "@/components/forms/expense-form";
 import { DeleteExpenseButton } from "@/components/forms/delete-expense-button";
@@ -24,12 +25,21 @@ function expenseSourceLabel(sourceType: string): string {
   return map[sourceType] ?? sourceType;
 }
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
   const userId = await getDefaultUserId();
   if (!userId) {
     redirect("/setup");
   }
-  const { month, year } = currentMonthYear();
+  const { month, year } = parseMonthYearFromSearchParams(searchParams);
+  const monthLabels = Array.from({ length: 12 }, (_, i) => ({
+    value: i + 1,
+    label: new Date(2000, i, 1).toLocaleString("es-AR", { month: "long" }),
+  }));
+  const defaultTx = defaultExpenseDateForBudgetMonth(month, year);
 
   const [cards, expenses] = await Promise.all([
     prisma.creditCard.findMany({ where: { userId, active: true } }),
@@ -48,11 +58,16 @@ export default async function ExpensesPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Gastos</h1>
-        <p className="text-muted-foreground">
-          Lo que cargás acá como <strong>manual</strong> es el gasto en curso y es lo que cuenta para el límite mensual.
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Gastos</h1>
+          <p className="text-muted-foreground">
+            Lo que cargás como <strong>manual</strong> cuenta para el límite de{" "}
+            <strong>{format(new Date(year, month - 1, 1), "MMMM yyyy")}</strong> (mismo mes que el panel y
+            Configuración).
+          </p>
+        </div>
+        <MonthYearUrlNav pathname="/expenses" month={month} year={year} monthLabels={monthLabels} />
       </div>
 
       <Alert>
@@ -67,7 +82,8 @@ export default async function ExpensesPage() {
         <CardHeader>
           <CardTitle>Nuevo gasto</CardTitle>
           <CardDescription>
-            Se imputa a {format(new Date(year, month - 1, 1), "MMMM yyyy")} y cuenta como gasto en curso (manual).
+            La fecha del movimiento define el mes: si elegís abril, cargá gastos con fecha en abril para que bajen del
+            tope de abril.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -76,7 +92,12 @@ export default async function ExpensesPage() {
               Add a credit card first in <a className="underline" href="/cards">Cards</a>.
             </p>
           ) : (
-            <ExpenseForm userId={userId} cards={cards} categories={categories} />
+            <ExpenseForm
+              userId={userId}
+              cards={cards}
+              categories={categories}
+              defaultTransactionDate={defaultTx}
+            />
           )}
         </CardContent>
       </Card>

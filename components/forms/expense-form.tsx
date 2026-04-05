@@ -49,12 +49,15 @@ export function ExpenseForm({
   categories,
   expense,
   afterSubmit,
+  defaultTransactionDate,
 }: {
   userId: string;
   cards: CreditCard[];
   categories: Category[];
   expense?: ExpenseFormEditValues;
   afterSubmit?: () => void;
+  /** YYYY-MM-DD para nuevas altas (p. ej. mes del panel distinto al actual). */
+  defaultTransactionDate?: string;
 }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -70,7 +73,7 @@ export function ExpenseForm({
           categoryId: expense.categoryId,
         }
       : {
-          transactionDate: new Date().toISOString().slice(0, 10),
+          transactionDate: defaultTransactionDate ?? new Date().toISOString().slice(0, 10),
           amount: 0,
           description: "",
           merchant: "",

@@ -113,6 +113,7 @@ export function SettingsBudgetForm({
     thresholds: { percentage: number; enabled: boolean }[];
   };
 }) {
+  const router = useRouter();
   const savingsDefault =
     initial.savingsPercentage ??
     (initial.allowedPercentage != null ? 100 - initial.allowedPercentage : 0);
@@ -174,6 +175,7 @@ export function SettingsBudgetForm({
           { percentage: 100, enabled: values.t100 },
         ],
       });
+      router.refresh();
     });
   }
 
@@ -182,8 +184,11 @@ export function SettingsBudgetForm({
       <CardHeader>
         <CardTitle>Límite mensual en tarjeta</CardTitle>
         <CardDescription>
-          Sueldo neto, Soledad, pagos de tarjeta con vencimiento en el mes (según resúmenes importados) y % de ahorro
-          sobre lo que queda. Los datos se guardan junto con el mes y año elegidos.
+          El <strong>sueldo neto lo cargás vos</strong> (podés estimarlo si todavía no cobraste ese mes) y{" "}
+          <strong>podés editarlo cuando quieras</strong> — por ejemplo si te informan un aumento o cuando tengas el
+          recibo final. El panel y el límite usan siempre el valor guardado acá. La gráfica de evolución toma el mismo
+          número por mes: no se calcula solo desde los resúmenes; los resúmenes ajustan los pagos de tarjeta, no el
+          sueldo.
         </CardDescription>
         <MonthYearNav month={month} year={year} labels={monthLabels} />
       </CardHeader>
@@ -193,6 +198,10 @@ export function SettingsBudgetForm({
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="net">Sueldo neto (este mes)</Label>
               <Input id="net" type="number" step="0.01" min={0} {...form.register("monthlyIncome")} />
+              <p className="text-xs text-muted-foreground">
+                Es el monto que querés usar para las cuentas de este mes en el panel; la evolución histórica usa este
+                mismo valor una vez guardado. Si cambia el importe (aumento, error de carga), guardá de nuevo.
+              </p>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="soledad">Transferido en efectivo a Soledad</Label>

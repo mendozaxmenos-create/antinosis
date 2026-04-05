@@ -57,3 +57,25 @@ export function currentMonthYear(): { month: number; year: number } {
   const now = new Date();
   return { month: now.getMonth() + 1, year: now.getFullYear() };
 }
+
+export function isCalendarMonthCurrent(month: number, year: number): boolean {
+  const now = new Date();
+  return month === now.getMonth() + 1 && year === now.getFullYear();
+}
+
+/**
+ * Fecha por defecto para nuevos gastos manuales cuando el usuario elige un mes en el panel.
+ * Si el mes elegido es el actual, usa hoy; si no, día 15 del mes elegido (planificación).
+ */
+export function defaultExpenseDateForBudgetMonth(month: number, year: number): string {
+  const now = new Date();
+  const cm = now.getMonth() + 1;
+  const cy = now.getFullYear();
+  if (month === cm && year === cy) {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return `${year}-${String(month).padStart(2, "0")}-15`;
+}

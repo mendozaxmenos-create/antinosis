@@ -6,8 +6,9 @@ import { CardSpendChart } from "@/components/charts/card-spend-chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { formatCurrency } from "@/lib/helpers";
-import { currentMonthYear } from "@/lib/helpers";
+import { formatCurrency, isCalendarMonthCurrent } from "@/lib/helpers";
+import { parseMonthYearFromSearchParams } from "@/lib/parse-month-year-params";
+import { MonthYearUrlNav } from "@/components/month-year-url-nav";
 import { getDefaultUserId } from "@/lib/user";
 import { countMonthsWithNetIncome, getMonthFinancials, sumRegisteredNetIncome } from "@/services/budgetService";
 import {
@@ -26,13 +27,21 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
   const userId = await getDefaultUserId();
   if (!userId) {
     redirect("/setup");
   }
 
-  const { month, year } = currentMonthYear();
+  const { month, year } = parseMonthYearFromSearchParams(searchParams);
+  const monthLabels = Array.from({ length: 12 }, (_, i) => ({
+    value: i + 1,
+    label: new Date(2000, i, 1).toLocaleString("es-AR", { month: "long" }),
+  }));
   const { budget, spent, spentImportedTotal, remaining, percentConsumed, config, cardPaymentsDueInMonth } =
     await getMonthFinancials(userId, month, year);
   await syncAlertsForMonth(userId, month, year, percentConsumed, config.id);
@@ -60,7 +69,7 @@ export default async function DashboardPage() {
 
   const topCategory = categoryTotals[0]?.categoryName;
   const insights: string[] = [
-    `El límite mensual considera sueldo neto, menos Soledad, menos ${formatCurrency(breakdown.cardPaymentsDue)} en pagos de tarjeta con vencimiento este mes (según resúmenes importados), y el % de ahorro sobre lo que queda.`,
+    `El límite considera el sueldo neto y parámetros de Configuración para ${format(new Date(year, month - 1, 1), "MMMM yyyy")}, menos Soledad, menos ${formatCurrency(breakdown.cardPaymentsDue)} en pagos con vencimiento en ese mes (resúmenes importados), y el % de ahorro sobre lo que queda.`,
     `Sobre el gasto en curso (manual), usaste ${percentConsumed.toFixed(0)}% de ese límite.`,
     topCategory
       ? `La categoría con más gasto en curso es ${topCategory}.`
@@ -75,22 +84,48 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Panel</h1>
           <p className="text-muted-foreground">
-            Mes en curso · {format(new Date(year, month - 1, 1), "MMMM yyyy")}
+            Mes del panel · {format(new Date(year, month - 1, 1), "MMMM yyyy")}
+            {!isCalendarMonthCurrent(month, year) ? (
+              <span className="text-amber-700 dark:text-amber-400"> · no es el mes calendario actual</span>
+            ) : null}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/settings">Configuración e ingresos</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/expenses">Agregar gasto</Link>
-          </Button>
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end">
+          <MonthYearUrlNav pathname="/dashboard" month={month} year={year} monthLabels={monthLabels} />
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/settings?month=${month}&year=${year}`}>Configuración e ingresos</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/expenses?month=${month}&year=${year}`}>Agregar gasto</Link>
+            </Button>
+          </div>
         </div>
       </div>
+
+      <Alert id="panel-mes-tarjeta">
+        <AlertTitle>Cómo se arma el mes del panel</AlertTitle>
+        <AlertDescription className="space-y-2 text-sm leading-relaxed">
+          <p>
+            Todo lo que ves acá corresponde al <strong>mes que elegís arriba</strong> (no necesariamente el mes de hoy).
+            Para ese mes se usan: el <strong>sueldo neto y reglas</strong> de{" "}
+            <Link href={`/settings?month=${month}&year=${year}`} className="underline underline-offset-4">
+              Configuración
+            </Link>
+            , los <strong>gastos manuales con fecha</strong> en ese mes, y los <strong>resúmenes cuyo vencimiento de pago</strong>{" "}
+            cae en ese mes.
+          </p>
+          <p>
+            Si cobrás el sueldo de marzo y querés ver cuánto te queda para consumir con tarjeta en el ciclo que{" "}
+            <strong>vence en abril</strong>, elegí <strong>abril</strong> en el selector y cargá en Configuración (abril)
+            el neto que aplica a ese período (muchas veces es el mismo monto que el sueldo de marzo).
+          </p>
+        </AlertDescription>
+      </Alert>
 
       <section aria-labelledby="dashboard-kpis-heading" className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-2">
@@ -98,7 +133,7 @@ export default async function DashboardPage() {
             Indicadores del mes
           </h2>
           <Link
-            href="/settings"
+            href={`/settings?month=${month}&year=${year}`}
             className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
           >
             Editar en Configuración
@@ -113,7 +148,10 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.netSalary)}</p>
-              <p className="text-xs text-muted-foreground">Mes contable actual</p>
+              <p className="text-xs text-muted-foreground">
+                {isCalendarMonthCurrent(month, year) ? "Mes calendario actual" : "Mes seleccionado (Config.)"} · manual,
+                editable
+              </p>
             </CardContent>
           </Card>
           <Card className="border-muted">
@@ -250,7 +288,7 @@ export default async function DashboardPage() {
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(totalNetRegistered)}</p>
               <p className="text-xs text-muted-foreground">
                 {monthsWithIncome} mes{monthsWithIncome === 1 ? "" : "es"} con sueldo ·{" "}
-                <Link href="/settings" className="underline">
+                <Link href={`/settings?month=${month}&year=${year}`} className="underline">
                   Evolución
                 </Link>
               </p>
@@ -349,7 +387,9 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Gasto por tarjeta</CardTitle>
-            <CardDescription>En curso (manual) · mes actual</CardDescription>
+            <CardDescription>
+              En curso (manual) · {format(new Date(year, month - 1, 1), "MMMM yyyy")}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <CardSpendChart data={cardSpend} />
@@ -437,7 +477,7 @@ export default async function DashboardPage() {
             </Table>
             <Separator className="my-4" />
             <Button asChild variant="link" className="px-0">
-              <Link href="/expenses">Ver todos los gastos</Link>
+              <Link href={`/expenses?month=${month}&year=${year}`}>Ver todos los gastos</Link>
             </Button>
           </CardContent>
         </Card>

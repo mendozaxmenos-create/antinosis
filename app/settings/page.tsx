@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SettingsBudgetForm } from "@/components/forms/settings-budget-form";
 import { IncomeEvolutionChart } from "@/components/charts/income-evolution-chart";
-import { currentMonthYear } from "@/lib/helpers";
+import { parseMonthYearFromSearchParams } from "@/lib/parse-month-year-params";
 import { formatCurrency } from "@/lib/helpers";
 import { getDefaultUserId } from "@/lib/user";
 import { prisma } from "@/lib/prisma";
@@ -13,6 +13,7 @@ import { CategoriesManager } from "@/components/forms/categories-manager";
 import { redirect } from "next/navigation";
 import { Cloud } from "lucide-react";
 import { calculateMonthlyLimit } from "@/lib/calculations";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default async function SettingsPage({
   searchParams,
@@ -22,12 +23,7 @@ export default async function SettingsPage({
   const userId = await getDefaultUserId();
   if (!userId) redirect("/setup");
 
-  const { month: cm, year: cy } = currentMonthYear();
-  const rawM = searchParams?.month;
-  const rawY = searchParams?.year;
-  const month = typeof rawM === "string" && rawM ? Math.min(12, Math.max(1, Number(rawM))) : cm;
-  const year =
-    typeof rawY === "string" && rawY ? Math.max(2000, Math.min(2100, Number(rawY))) : cy;
+  const { month, year } = parseMonthYearFromSearchParams(searchParams);
 
   const [config, history, totalNet, userPrefs, paymentsByDueMonth, categoriesWithCount] = await Promise.all([
     getOrCreateBudgetConfig(userId, month, year),
@@ -45,6 +41,10 @@ export default async function SettingsPage({
   ]);
 
   const cardPaymentsDueForSelectedMonth = paymentsByDueMonth.get(`${year}-${month}`) ?? 0;
+  const hasSalaryForMonth =
+    config.monthlyIncome != null && Number(config.monthlyIncome) > 0;
+  const showSalaryReminder =
+    cardPaymentsDueForSelectedMonth > 0 && !hasSalaryForMonth;
 
   const monthLabels = Array.from({ length: 12 }, (_, i) => ({
     value: i + 1,
@@ -113,6 +113,21 @@ export default async function SettingsPage({
         </CardHeader>
       </Card>
 
+      {showSalaryReminder ? (
+        <Alert>
+          <AlertTitle>Resúmenes con vencimiento en este mes</AlertTitle>
+          <AlertDescription>
+            Ya hay pagos de tarjeta importados para{" "}
+            <strong>
+              {String(month).padStart(2, "0")}/{year}
+            </strong>
+            . Cargá el <strong>sueldo neto</strong> abajo (aunque sea estimado) para que el límite y la evolución
+            tengan sentido. Ese valor es el que queda guardado por mes: podés corregirlo cuando tengas el monto
+            definitivo o un aumento.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <SettingsBudgetForm
         userId={userId}
         month={month}
@@ -136,7 +151,8 @@ export default async function SettingsPage({
         <CardHeader>
           <CardTitle>Evolución del sueldo neto</CardTitle>
           <CardDescription>
-            Cada mes cargado con sueldo neto suma al indicador global. Orden cronológico.
+            Cada punto es el <strong>sueldo neto guardado</strong> en la configuración de ese mes (el mismo que usás en
+            el límite). Podés estimarlo antes de cobrar y editarlo después; no se infiere desde los resúmenes.
           </CardDescription>
         </CardHeader>
         <CardContent>
