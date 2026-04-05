@@ -1,6 +1,6 @@
 # CardSpend
 
-Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a partir de **sueldo neto**, transferencias, **pagos de tarjeta con vencimiento en el mes** (según resúmenes importados), % de ahorro, seguimiento **en curso** (cargas manuales), **importación de capturas** (OCR en el navegador) al cargar un gasto, importación de **resúmenes CSV y PDF** (varios bancos), alertas por umbrales y vencimientos, informes e integraciones opcionales (**Google Calendar**, **Telegram**, **email**).
+Aplicación web para **controlar gasto con tarjeta de crédito**. El núcleo es **CuantoQueda**: sobre el **sueldo neto** del mes (cargado a mano y editable cuando quieras) se resta **Soledad** y un **% de ahorro**; ese es el **tope para gastos manuales** del mes. Los **resúmenes importados** muestran cuánto pagás de tarjeta por vencimiento, pero **no restan** de ese tope (solo referencia). Incluye **importación de capturas** (OCR) al cargar un gasto, **resúmenes CSV y PDF** (varios bancos), alertas, informes e integraciones opcionales (**Google Calendar**, **Telegram**, **email**).
 
 > El paquete npm se llama `antinosis`; en la UI la app se muestra como **CardSpend**.
 
@@ -37,10 +37,10 @@ Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a 
 | Área | Qué incluye |
 |------|-------------|
 | **Primer uso** | Ruta `/setup`: creás el único perfil de la instalación (un usuario por base de datos). |
-| **Configuración** (`/settings`) | Por mes/año: **sueldo neto**, **efectivo a Soledad**, **% de ahorro** sobre el disponible, **tope manual** opcional en tarjeta, umbrales de alerta (60–100 %). Evolución del sueldo neto (gráfico + tabla histórica). |
-| **Dashboard** | KPIs (neto, Soledad, ahorro, límite, gasto manual, importado, saldo vs límite, suma de ingresos históricos), gauge, gasto por categoría/tarjeta, alertas, insights. |
+| **Configuración** (`/settings`) | Por mes/año (`?month=&year=`): **sueldo neto** (estimable antes de cobrarlo), **Soledad**, **% de ahorro** sobre *(neto − Soledad)*, **tope manual** opcional, umbrales (60–100 %). Vista previa del **CuantoQueda**. Evolución y tabla histórica (el sueldo guardado por mes). |
+| **CuantoQueda** (`/dashboard`) | Mismo selector de mes. Tarjeta principal con **saldo disponible** (tope − gasto manual); números del mes: sueldo, Soledad, base, % ahorro, tope, gasto manual; bloque **solo referencia** (total a pagar por resúmenes con vencimiento en el mes, movimientos importados del mes contable). Gauge, categorías/tarjeta, alertas, insights. |
 | **Tarjetas** (`/cards`) | Alta/edición/baja: banco, nombre, marca, últimos 4, días de cierre y vencimiento. |
-| **Gastos** (`/expenses`) | Movimientos **manuales** que cuentan para el límite del mes. |
+| **Gastos** (`/expenses`) | Movimientos **manuales** que restan del **CuantoQueda** del mes (`?month=&year=`). |
 | **Informes** (`/reports`) | Comparativas mensuales, torta por categoría, gasto por tarjeta. |
 | **Resúmenes** (`/imports`) | Importación **CSV** o **PDF**: cadena en `lib/parse-statement-import.ts` — **CSV** genérico (montos AR; columnas USD o celdas `U$S`/`USD`); **PDF/texto** según formato detectado — **Brubank**, **BBVA Argentina** (Visa), **Banco Nación / Mastercard** (p. ej. Nativa). Consumos en **USD** se convierten a ARS con **cotización oficial BCRA** (`lib/bcra-usd-ars-rate.ts`). Movimientos importados quedan ligados al resumen (`Expense.statementImportId`); las vistas del **mes calendario** filtran por **fecha de operación** (`transactionDate`), no por el mes del formulario de import. Categorización heurística (`lib/statement-categorize.ts`); alerta de vencimiento; opcional **Google Calendar**; UI de error si falla la carga (`app/imports/error.tsx`). |
 
@@ -179,10 +179,10 @@ Cada **push a `main`** suele disparar un deploy automático (`npm run sync:githu
 ## Flujo de uso
 
 1. **`/setup`**: nombre del perfil.  
-2. **`/settings`**: cargá sueldo neto, Soledad, % ahorro y umbrales para el mes.  
+2. **`/settings`**: para el mes que elijas, cargá **sueldo neto** (podés estimarlo y editarlo después), Soledad, % ahorro y umbrales.  
 3. **`/cards`**: tarjetas con cierre y vencimiento.  
-4. **`/expenses`**: gastos manuales del mes.  
-5. **`/dashboard`**: visión general y KPIs.  
+4. **`/expenses`**: gastos manuales del mes (mismo mes que en el panel).  
+5. **`/dashboard`**: **CuantoQueda** — cuánto te queda bajo el tope de gasto manual.  
 6. **`/imports`**: CSV o PDF (Brubank, BBVA, Banco Nación MC, u otro banco vía CSV); opcional Calendar conectado.  
 7. **`/reports`**: histórico y comparativas.
 
@@ -211,10 +211,11 @@ Los consumos en **dólares** se pasan a pesos con la **cotización oficial del U
 
 ## Reglas de negocio
 
-- **Base para el % de ahorro y el límite en curso** = máx. 0, **sueldo neto − Soledad − total a pagar por resúmenes con vencimiento en ese mes calendario** (totales por resumen importado según `StatementImport.paymentDueDate`). Sobre esa base se aplica el **% de ahorro**; el **límite** es el resto salvo **tope manual** (ver `lib/calculations.ts` y `services/statementPaymentService.ts`).
-- Solo gastos **manuales** cuentan para el límite y umbrales (`lib/expense-scope.ts`).
-- Movimientos **importados** (CSV/PDF) no restan del tope mensual (sirven para registro, informes, cálculo de “qué pagar este mes” y calendario).
-- **Mes en dashboard / gastos / presupuesto**: se agrupa por **fecha de operación** (`transactionDate`) dentro del mes calendario (`lib/month-transaction-filter.ts`), para no mezclar consumos de otros meses que vienen en un resumen vencido.
+- **CuantoQueda / tope de gasto manual** = máx. 0, **(sueldo neto − Soledad) × (1 − % ahorro/100)** salvo **tope manual** que lo reemplace (`lib/calculations.ts`). El **sueldo neto** es el valor guardado en configuración para ese mes/año (editable en cualquier momento); la evolución histórica usa ese mismo valor por mes.
+- **Los resúmenes importados no entran** en el cálculo del tope: el total a pagar por vencimiento en el mes (`services/statementPaymentService.ts`, `StatementImport.paymentDueDate`) se muestra como **referencia** en el panel, no resta del disponible para gasto manual.
+- Solo gastos **manuales** cuentan para el tope y umbrales (`lib/expense-scope.ts`).
+- Movimientos **importados** (CSV/PDF) no restan del tope (registro, informes, referencia de pagos y calendario).
+- **Mes del panel / gastos / presupuesto**: selector **`?month=&year=`** alineado con Configuración. Los gastos manuales se filtran por **fecha de operación** en ese mes calendario (`lib/month-transaction-filter.ts`).
 
 ---
 

@@ -6,19 +6,22 @@ export type BudgetComputationInput = {
   manualCardLimit: number | null | undefined;
   soledadCashTransfer?: number | null | undefined;
   savingsPercentage?: number | null | undefined;
-  /** Total a pagar por resúmenes con vencimiento en el mes calendario (importados). */
+  /**
+   * Total a pagar por resúmenes con vencimiento en el mes (importados). Solo informativo: **no resta** del tope de gasto manual.
+   */
   cardPaymentsDueInMonth?: number | null | undefined;
 };
 
 /**
- * Desglose: neto → −Soledad → −pagos tarjeta (vencen este mes) → % ahorro sobre esa base → límite en curso (salvo tope manual).
+ * Desglose CuantoQueda: neto → −Soledad → % ahorro sobre (neto − Soledad) → límite para gasto manual.
+ * Los resúmenes importados no reducen ese tope (solo referencia en UI).
  */
 export function explainBudgetComputation(input: BudgetComputationInput) {
   const net = Math.max(0, input.monthlyIncome ?? 0);
   const soledad = Math.max(0, input.soledadCashTransfer ?? 0);
   const cardPay = Math.max(0, input.cardPaymentsDueInMonth ?? 0);
   const afterSoledad = Math.max(0, net - soledad);
-  const baseForSavings = Math.max(0, net - soledad - cardPay);
+  const baseForSavings = Math.max(0, afterSoledad);
   const savingsPctRaw =
     input.savingsPercentage != null && input.savingsPercentage !== undefined
       ? input.savingsPercentage
@@ -35,9 +38,9 @@ export function explainBudgetComputation(input: BudgetComputationInput) {
     netSalary: net,
     soledadCash: soledad,
     cardPaymentsDue: cardPay,
-    /** net − Soledad (antes de restar vencimientos de tarjeta) */
+    /** net − Soledad */
     baseAfterSoledad: afterSoledad,
-    /** net − Soledad − pagos con vencimiento este mes; aquí aplica el % de ahorro */
+    /** Igual que tras Soledad; sobre esto aplica el % de ahorro (sin restar resúmenes). */
     baseForSavings,
     savingsPct,
     savingsAmount,

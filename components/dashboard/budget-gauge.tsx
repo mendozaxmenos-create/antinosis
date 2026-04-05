@@ -25,7 +25,7 @@ export function BudgetGauge({
     <div className="space-y-3">
       <div className="flex items-baseline justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">Uso del límite (gasto en curso)</p>
+          <p className="text-sm text-muted-foreground">Uso del tope (solo manual)</p>
           <p className="text-3xl font-semibold tracking-tight">{percentConsumed.toFixed(1)}%</p>
         </div>
         <p className="text-right text-sm text-muted-foreground">

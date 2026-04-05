@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const nav = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "CuantoQueda", icon: LayoutDashboard },
   { href: "/settings", label: "Configuración", icon: Settings },
   { href: "/cards", label: "Cards", icon: CreditCard },
   { href: "/expenses", label: "Expenses", icon: Receipt },

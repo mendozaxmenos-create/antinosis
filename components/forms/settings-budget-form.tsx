@@ -182,13 +182,11 @@ export function SettingsBudgetForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Límite mensual en tarjeta</CardTitle>
+        <CardTitle>Presupuesto mensual (CuantoQueda)</CardTitle>
         <CardDescription>
-          El <strong>sueldo neto lo cargás vos</strong> (podés estimarlo si todavía no cobraste ese mes) y{" "}
-          <strong>podés editarlo cuando quieras</strong> — por ejemplo si te informan un aumento o cuando tengas el
-          recibo final. El panel y el límite usan siempre el valor guardado acá. La gráfica de evolución toma el mismo
-          número por mes: no se calcula solo desde los resúmenes; los resúmenes ajustan los pagos de tarjeta, no el
-          sueldo.
+          <strong>CuantoQueda</strong>: sobre el sueldo neto de este mes (editable cuando quieras) se resta Soledad, se
+          aplica el % de ahorro sobre eso, y ese es el tope para <strong>gastos manuales</strong>. Los totales de
+          resúmenes importados son solo referencia y <strong>no restan</strong> de ese tope.
         </CardDescription>
         <MonthYearNav month={month} year={year} labels={monthLabels} />
       </CardHeader>
@@ -241,20 +239,22 @@ export function SettingsBudgetForm({
             <ul className="space-y-1 text-muted-foreground">
               <li>Sueldo neto: {formatCurrency(preview.netSalary)}</li>
               <li>− Soledad (efectivo): {formatCurrency(preview.soledadCash)}</li>
-              <li>= Tras Soledad: {formatCurrency(preview.baseAfterSoledad)}</li>
-              <li>− Pagos tarjeta (vencen este mes): {formatCurrency(preview.cardPaymentsDue)}</li>
-              <li>= Base para ahorro: {formatCurrency(preview.baseForSavings)}</li>
+              <li>= Base para % ahorro: {formatCurrency(preview.baseForSavings)}</li>
               <li>
                 − Ahorro ({preview.savingsPct.toFixed(1)}%): {formatCurrency(preview.savingsAmount)}
               </li>
               <li className="font-medium text-foreground pt-1">
-                Límite calculado (gasto en curso): {formatCurrency(preview.limitFromRule)}
+                Tope gasto manual (CuantoQueda): {formatCurrency(preview.limitFromRule)}
               </li>
               {preview.manualOverride != null && (
                 <li className="text-foreground">Usando tope manual: {formatCurrency(preview.manualOverride)}</li>
               )}
-              <li className="text-lg font-semibold pt-1">Límite aplicado: {formatCurrency(preview.finalLimit)}</li>
+              <li className="text-lg font-semibold pt-1">Tope aplicado: {formatCurrency(preview.finalLimit)}</li>
             </ul>
+            <p className="text-xs text-muted-foreground pt-2 border-t border-border/60">
+              Resúmenes con vencimiento este mes: {formatCurrency(preview.cardPaymentsDue)} (referencia; no entra en el
+              cálculo del tope).
+            </p>
           </div>
 
           <div className="space-y-3">

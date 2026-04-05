@@ -34,8 +34,8 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Módulo | Implementado |
 |--------|----------------|
-| **Dashboard** | KPIs: neto, Soledad, **pagos tarjeta con vencimiento en el mes** (suma de resúmenes importados), **base para ahorro**, % ahorro, monto ahorro, límite en curso, gasto manual, importado del mes contable, saldo vs límite, histórico ingresos; gauge; categorías/tarjeta; alertas; insights |
-| **Configuración** (`/settings`) | Mes/año, sueldo neto, efectivo a Soledad, % ahorro (sobre base ya descontados vencimientos del mes), tope manual, umbrales; **vista previa** con desglose incl. pagos de tarjeta del mes; evolución y tabla histórica (límite coherente con vencimientos); canal de alertas (app / Telegram / email); texto datos en la nube |
+| **CuantoQueda** (`/dashboard`) | Selector de mes (`?month=&year=`). Tarjeta principal **saldo disponible** (tope − gasto manual); KPIs: neto, Soledad, base (neto−Soledad), % ahorro, ahorro estimado, tope, gasto manual; bloque **referencia** (total a pagar por resúmenes con vencimiento en el mes, importado del mes contable — **no restan del tope**); gauge; categorías/tarjeta; alertas; insights |
+| **Configuración** (`/settings`) | Mes/año, sueldo neto (manual, editable), Soledad, % ahorro sobre *(neto − Soledad)*, tope manual, umbrales; vista previa **sin** restar resúmenes del tope; total resúmenes del mes como referencia; evolución y tabla; alertas (app / Telegram / email) |
 | **Cards / Expenses / Reports / Imports** | CRUD y reportes; **alta de gasto con imagen + OCR** (`tesseract.js`, `lib/parse-receipt-ocr-text.ts`); **import CSV o PDF**: `parse-statement-import.ts` encadena CSV genérico (USD/BCRA si aplica), PDF **Brubank**, **BBVA**, **Banco Nación MC** (`parse-brubank-statement`, `parse-bbva-statement`, `parse-banco-nacion-mc-statement`); vistas por mes usan **fecha de operación** (`transactionDate`, `lib/month-transaction-filter.ts`); **Google Calendar** OAuth en imports; **`/imports`** con `error.tsx` si falla la carga |
 | **Alertas** | Umbrales (gasto manual vs límite); vencimientos por import; mensajes en español en BD; **replicación** opcional a Telegram (`TELEGRAM_BOT_TOKEN` + chat id) o email (Resend: `RESEND_API_KEY`, `RESEND_FROM`) |
 | **Google Calendar** | OAuth, evento de vencimiento al importar si hay token |
@@ -49,14 +49,14 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ### Reglas de negocio
 
-- Límite tarjeta = f(sueldo neto − Soledad − **pagos con vencimiento en el mes calendario**) y % ahorro sobre esa base, salvo tope manual (`lib/calculations.ts`, `services/statementPaymentService.ts`).
+- **Tope gasto manual (CuantoQueda)** = f(sueldo neto − Soledad) y % ahorro sobre esa base, salvo tope manual (`lib/calculations.ts`). Los **pagos por resúmenes** (vencimiento en el mes) **no** restan del tope; se muestran como referencia (`services/statementPaymentService.ts`).
 - Solo gastos **manuales** cuentan para el tope (`lib/expense-scope.ts`).
 - Los **importados** se filtran por **fecha de operación** en el mes calendario (no por el mes elegido al subir el archivo).
 - Primer usuario = cuenta activa (`getDefaultUserId`).
 
 ### UI
 
-- Navegación: **Configuración**, Dashboard, Cards, Expenses, Reports, Resúmenes; botón recargar junto al logo.
+- Navegación: **Configuración**, **CuantoQueda** (antes “Dashboard”), Cards, Expenses, Reports, Resúmenes; botón recargar junto al logo.
 - shadcn + Recharts.
 
 ---

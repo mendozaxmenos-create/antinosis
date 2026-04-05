@@ -69,24 +69,24 @@ export default async function DashboardPage({
 
   const topCategory = categoryTotals[0]?.categoryName;
   const insights: string[] = [
-    `El límite considera el sueldo neto y parámetros de Configuración para ${format(new Date(year, month - 1, 1), "MMMM yyyy")}, menos Soledad, menos ${formatCurrency(breakdown.cardPaymentsDue)} en pagos con vencimiento en ese mes (resúmenes importados), y el % de ahorro sobre lo que queda.`,
-    `Sobre el gasto en curso (manual), usaste ${percentConsumed.toFixed(0)}% de ese límite.`,
+    `El tope sale del sueldo neto de Configuración (${format(new Date(year, month - 1, 1), "MMMM")}), menos Soledad, menos el % de ahorro sobre eso. Los resúmenes de tarjeta no restan del CuantoQueda.`,
+    `Gasto manual del mes: ${percentConsumed.toFixed(0)}% del tope.`,
     topCategory
-      ? `La categoría con más gasto en curso es ${topCategory}.`
-      : "Cargá gastos manuales para ver categorías que cuentan para el límite.",
+      ? `La categoría con más gasto manual es ${topCategory}.`
+      : "Cargá gastos manuales para ver categorías.",
     remaining >= 0
-      ? `Te quedan ${formatCurrency(remaining)} bajo el tope para gasto en curso.`
-      : `Vas ${formatCurrency(Math.abs(remaining))} por encima del límite (solo en curso).`,
+      ? `Te quedan ${formatCurrency(remaining)} para seguir cargando manual.`
+      : `Superaste el tope en ${formatCurrency(Math.abs(remaining))} (solo gasto manual).`,
     spentImportedTotal > 0
-      ? `Movimientos desde resúmenes en el mes contable: ${formatCurrency(spentImportedTotal)} (el total a pagar por vencimiento se usa arriba cuando importaste el resumen).`
-      : "Importá resúmenes para que calculemos los pagos con vencimiento en este mes.",
+      ? `Importado desde resúmenes en el mes (movimientos): ${formatCurrency(spentImportedTotal)} — informativo, no resta del tope.`
+      : "Podés importar resúmenes para ver cuánto vence en tarjeta (referencia).",
   ];
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Panel</h1>
+          <h1 className="text-3xl font-bold tracking-tight">CuantoQueda</h1>
           <p className="text-muted-foreground">
             Mes del panel · {format(new Date(year, month - 1, 1), "MMMM yyyy")}
             {!isCalendarMonthCurrent(month, year) ? (
@@ -108,39 +108,56 @@ export default async function DashboardPage({
       </div>
 
       <Alert id="panel-mes-tarjeta">
-        <AlertTitle>Cómo se arma el mes del panel</AlertTitle>
-        <AlertDescription className="space-y-2 text-sm leading-relaxed">
-          <p>
-            Todo lo que ves acá corresponde al <strong>mes que elegís arriba</strong> (no necesariamente el mes de hoy).
-            Para ese mes se usan: el <strong>sueldo neto y reglas</strong> de{" "}
-            <Link href={`/settings?month=${month}&year=${year}`} className="underline underline-offset-4">
-              Configuración
-            </Link>
-            , los <strong>gastos manuales con fecha</strong> en ese mes, y los <strong>resúmenes cuyo vencimiento de pago</strong>{" "}
-            cae en ese mes.
-          </p>
-          <p>
-            Si cobrás el sueldo de marzo y querés ver cuánto te queda para consumir con tarjeta en el ciclo que{" "}
-            <strong>vence en abril</strong>, elegí <strong>abril</strong> en el selector y cargá en Configuración (abril)
-            el neto que aplica a ese período (muchas veces es el mismo monto que el sueldo de marzo).
-          </p>
+        <AlertTitle>Lectura simple</AlertTitle>
+        <AlertDescription className="text-sm leading-relaxed">
+          Elegís el mes arriba. El <strong>sueldo neto</strong> de ese mes (en Configuración) menos <strong>Soledad</strong> y el{" "}
+          <strong>% de ahorro</strong> define el <strong>tope para gastos manuales</strong>. Ahí cargás lo que gastás en el día a día:
+          eso es lo que <strong>resta del CuantoQueda</strong>. Los <strong>resúmenes importados</strong> muestran cuánto pagás de
+          tarjeta por vencimiento, pero <strong>no bajan</strong> ese disponible.
         </AlertDescription>
       </Alert>
 
-      <section aria-labelledby="dashboard-kpis-heading" className="space-y-3">
+      <section aria-labelledby="dashboard-kpis-heading" className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <h2 id="dashboard-kpis-heading" className="text-sm font-medium text-muted-foreground">
-            Indicadores del mes
+            Números del mes
           </h2>
           <Link
             href={`/settings?month=${month}&year=${year}`}
             className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
           >
-            Editar en Configuración
+            Editar sueldo y reglas
           </Link>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <Card className="border-2 border-primary/35 bg-gradient-to-br from-primary/10 via-background to-background shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-2xl tracking-tight">CuantoQueda</CardTitle>
+            <CardDescription>
+              Tope de gasto manual − cargas manuales del mes. Los resúmenes no intervienen acá.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p
+                className={`text-4xl font-bold tabular-nums tracking-tight ${
+                  remaining >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
+                }`}
+              >
+                {formatCurrency(remaining)}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {percentConsumed.toFixed(0)}% del tope usado · tope {formatCurrency(budget)} · gastado manual{" "}
+                {formatCurrency(spent)}
+              </p>
+            </div>
+            <Button asChild variant="secondary" size="sm" className="shrink-0">
+              <Link href={`/expenses?month=${month}&year=${year}`}>Cargar gasto manual</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-muted">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardDescription className="text-xs font-medium uppercase tracking-wide">Sueldo neto</CardDescription>
@@ -149,59 +166,27 @@ export default async function DashboardPage({
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.netSalary)}</p>
               <p className="text-xs text-muted-foreground">
-                {isCalendarMonthCurrent(month, year) ? "Mes calendario actual" : "Mes seleccionado (Config.)"} · manual,
-                editable
+                {format(new Date(year, month - 1, 1), "MMMM yyyy")} · editable en Config.
               </p>
             </CardContent>
           </Card>
           <Card className="border-muted">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">A Soledad (efectivo)</CardDescription>
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">A Soledad</CardDescription>
               <TrendingUp className="h-4 w-4 text-muted-foreground" aria-hidden />
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.soledadCash)}</p>
-              <p className="text-xs text-muted-foreground">Descontado del neto</p>
+              <p className="text-xs text-muted-foreground">Se resta primero</p>
             </CardContent>
           </Card>
           <Card className="border-muted">
             <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">Tras Soledad</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.baseAfterSoledad)}</p>
-              <p className="text-xs text-muted-foreground">Neto − transferencia</p>
-            </CardContent>
-          </Card>
-          <Card className="border-muted">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">Pagos tarjeta (vencen este mes)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.cardPaymentsDue)}</p>
-              <p className="text-xs text-muted-foreground">Total en ARS (pesos del resumen + USD × cotización BCRA al importar)</p>
-              {paymentBreakdown.subtotalUsdOriginal > 0 ? (
-                <div className="rounded-md border border-dashed bg-muted/30 px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
-                  <span className="font-medium text-foreground">Desglose:</span> cargos en pesos{" "}
-                  {formatCurrency(paymentBreakdown.subtotalArsNative)} · USD{" "}
-                  {paymentBreakdown.subtotalUsdOriginal.toLocaleString("es-AR", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{" "}
-                  → {formatCurrency(paymentBreakdown.subtotalUsdAsArs)} ARS
-                </div>
-              ) : breakdown.cardPaymentsDue > 0 ? (
-                <p className="text-xs text-muted-foreground">Solo movimientos en pesos en los resúmenes importados.</p>
-              ) : null}
-            </CardContent>
-          </Card>
-          <Card className="border-muted">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">Base para ahorro</CardDescription>
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Neto − Soledad</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.baseForSavings)}</p>
-              <p className="text-xs text-muted-foreground">Después de pagos con vencimiento</p>
+              <p className="text-xs text-muted-foreground">Acá aplica el % de ahorro</p>
             </CardContent>
           </Card>
           <Card className="border-muted">
@@ -211,73 +196,40 @@ export default async function DashboardPage({
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{breakdown.savingsPct.toFixed(1)}%</p>
-              <p className="text-xs text-muted-foreground">Sobre la base anterior</p>
+              <p className="text-xs text-muted-foreground">Sobre neto − Soledad</p>
             </CardContent>
           </Card>
           <Card className="border-muted">
             <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">Monto ahorro (estim.)</CardDescription>
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Ahorro (estim.)</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.savingsAmount)}</p>
-              <p className="text-xs text-muted-foreground">Según regla del mes</p>
+              <p className="text-xs text-muted-foreground">Descontado del tope</p>
             </CardContent>
           </Card>
-          <Card className="border-primary/30 bg-primary/5">
+          <Card className="border-primary/25 bg-primary/5">
             <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide text-foreground/80">
-                Límite tarjeta
+              <CardDescription className="text-xs font-medium uppercase tracking-wide text-foreground/85">
+                Tope gasto manual
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(budget)}</p>
               {breakdown.manualOverride != null ? (
-                <p className="text-xs text-muted-foreground">Tope manual aplicado</p>
+                <p className="text-xs text-muted-foreground">Tope manual</p>
               ) : (
-                <p className="text-xs text-muted-foreground">Presupuesto en curso</p>
+                <p className="text-xs text-muted-foreground">Regla del mes</p>
               )}
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">Gasto en curso</CardDescription>
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Gasto manual</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(spent)}</p>
-              <p className="text-xs text-muted-foreground">Manual · cuenta para el límite</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">Importado (resúmenes)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(spentImportedTotal)}</p>
-              <p className="text-xs text-muted-foreground">No resta del límite</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">Saldo vs límite</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p
-                className={`text-2xl font-semibold tabular-nums ${
-                  remaining >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
-                }`}
-              >
-                {formatCurrency(remaining)}
-              </p>
-              <p className="text-xs text-muted-foreground">Disponible bajo el tope</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">Uso del límite</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tabular-nums">{percentConsumed.toFixed(1)}%</p>
-              <p className="text-xs text-muted-foreground">Gasto manual / límite</p>
+              <p className="text-xs text-muted-foreground">Resta del CuantoQueda</p>
             </CardContent>
           </Card>
           <Card>
@@ -287,13 +239,57 @@ export default async function DashboardPage({
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(totalNetRegistered)}</p>
               <p className="text-xs text-muted-foreground">
-                {monthsWithIncome} mes{monthsWithIncome === 1 ? "" : "es"} con sueldo ·{" "}
+                {monthsWithIncome} mes{monthsWithIncome === 1 ? "" : "es"} ·{" "}
                 <Link href={`/settings?month=${month}&year=${year}`} className="underline">
                   Evolución
                 </Link>
               </p>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Solo referencia (no resta del tope)</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Card className="border-dashed border-muted-foreground/40 bg-muted/20">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs font-medium uppercase tracking-wide">
+                  A pagar por resúmenes (vencen este mes)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.cardPaymentsDue)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Total ARS importado (pesos + USD a tipo BCRA). Suele ser el cierre de un mes y pagarse en el siguiente: no
+                  entra en el CuantoQueda.
+                </p>
+                {paymentBreakdown.subtotalUsdOriginal > 0 ? (
+                  <div className="rounded-md border border-dashed bg-background/80 px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
+                    <span className="font-medium text-foreground">Desglose:</span> pesos{" "}
+                    {formatCurrency(paymentBreakdown.subtotalArsNative)} · USD{" "}
+                    {paymentBreakdown.subtotalUsdOriginal.toLocaleString("es-AR", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    → {formatCurrency(paymentBreakdown.subtotalUsdAsArs)} ARS
+                  </div>
+                ) : breakdown.cardPaymentsDue > 0 ? (
+                  <p className="text-xs text-muted-foreground">Solo pesos en los resúmenes.</p>
+                ) : null}
+              </CardContent>
+            </Card>
+            <Card className="border-dashed border-muted-foreground/40 bg-muted/20">
+              <CardHeader className="pb-2">
+                <CardDescription className="text-xs font-medium uppercase tracking-wide">
+                  Movimientos importados (mes contable)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold tabular-nums">{formatCurrency(spentImportedTotal)}</p>
+                <p className="text-xs text-muted-foreground">Suma de líneas de resúmenes en el mes; informativo.</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {paymentBreakdown.byCard.length > 0 && (paymentBreakdown.byCard.length > 1 || paymentBreakdown.subtotalUsdOriginal > 0) ? (
@@ -343,9 +339,9 @@ export default async function DashboardPage({
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Uso del presupuesto</CardTitle>
+            <CardTitle>Barra del tope</CardTitle>
             <CardDescription>
-              Solo cuenta lo que cargás manualmente; los importes desde resumen no restan del tope.
+              Gasto manual vs tope del mes. Los resúmenes no mueven esta barra.
             </CardDescription>
           </CardHeader>
           <CardContent>
