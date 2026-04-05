@@ -7,13 +7,15 @@ import { prisma } from "@/lib/prisma";
 import { getMonthFinancials, upsertBudgetConfig } from "@/services/budgetService";
 import { syncAlertsForMonth } from "@/services/alertService";
 import { parseStatementFromText } from "@/lib/parse-statement-import";
+import { installPdfJsNodePolyfills } from "@/lib/pdf-node-polyfills";
 import { importStatementRows } from "@/services/statementImportService";
 
-/** Import dinámico: evita cargar pdfjs-dist al evaluar este módulo (GET /imports rompía en Vercel sin @napi-rs/canvas). */
+/** Import dinámico: evita cargar pdfjs-dist al evaluar este módulo (GET /imports). Polyfills antes de pdf-parse (DOMMatrix en Node). */
 async function statementFileToText(file: File): Promise<string> {
   const name = file.name.toLowerCase();
   const type = file.type?.toLowerCase() ?? "";
   if (type.includes("pdf") || name.endsWith(".pdf")) {
+    installPdfJsNodePolyfills();
     const buf = Buffer.from(await file.arrayBuffer());
     const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: buf });
