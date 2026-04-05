@@ -37,6 +37,7 @@ Aplicación web para **controlar gasto con tarjeta de crédito**. El núcleo es 
 | Área | Qué incluye |
 |------|-------------|
 | **Primer uso** | Ruta `/setup`: creás el único perfil de la instalación (un usuario por base de datos). |
+| **Acceso (opcional)** | Variable **`APP_PASSWORD`**: pantalla `/login`, cookie de sesión de acceso (30 días) y middleware; sin ella, quien tenga la URL entra como hasta ahora. En producción, definila también en Vercel. |
 | **Configuración** (`/settings`) | Por mes/año (`?month=&year=`): **sueldo neto** (estimable antes de cobrarlo), **Soledad**, **% de ahorro** sobre *(neto − Soledad)*, **tope manual** opcional, umbrales (60–100 %). Vista previa del **CuantoQueda**. **Bonos de sueldo** (aguinaldo, extras): registro por mes con monto y nota; **evolución** con dos líneas (neto vs bonos del mes) y total en tooltip. Tabla histórica de presupuesto por mes. |
 | **CuantoQueda** (`/dashboard`) | Mismo selector de mes. Tarjeta principal con **saldo disponible** (tope − gasto manual); números del mes: sueldo, Soledad, base, % ahorro, tope, gasto manual; bloque **solo referencia** (total a pagar por resúmenes con vencimiento en el mes, movimientos importados del mes contable). Gauge, categorías/tarjeta, alertas, insights. |
 | **Tarjetas** (`/cards`) | Alta/edición/baja: banco, nombre, marca, últimos 4, días de cierre y vencimiento. |
@@ -70,6 +71,7 @@ Aplicación web para **controlar gasto con tarjeta de crédito**. El núcleo es 
 ## Stack
 
 - **Next.js 14** (App Router) · **TypeScript** · **Tailwind CSS**
+- **Middleware** opcional: puerta de acceso con `APP_PASSWORD` (`/login`, cookie httpOnly)
 - **Server Actions**: límite de cuerpo **8 MB** para subir PDFs de resumen (`next.config.mjs` → `experimental.serverActions.bodySizeLimit`)
 - **Prisma 5** + **PostgreSQL** (Neon u otro; recomendado para local y producción)
 - **shadcn/ui** (Radix) · **React Hook Form** · **Zod** · **Recharts** · **date-fns**
@@ -146,7 +148,7 @@ Tras `npm install` corre `postinstall` → `prisma generate`.
 
 1. Repo en **GitHub** conectado a Vercel.
 2. **Build**: `npm run build` ejecuta `scripts/vercel-build.js`. En **Vercel** aplica automáticamente **`prisma db push`** contra la base configurada (necesitás **`DATABASE_URL`** en variables de entorno del proyecto). En tu PC, `npm run build` **no** hace `db push`; para alinear la base local usá `npm run db:push`.
-3. **Variables** en el proyecto Vercel: como mínimo **`DATABASE_URL`** (obligatoria para que el build aplique el esquema) y `NEXT_PUBLIC_APP_URL` (URL real del deploy). Opcional: Google, Telegram, Resend.
+3. **Variables** en el proyecto Vercel: como mínimo **`DATABASE_URL`** (obligatoria para que el build aplique el esquema) y `NEXT_PUBLIC_APP_URL` (URL real del deploy). Opcional: Google, Telegram, Resend. Si usás **puerta de acceso**, agregá **`APP_PASSWORD`** (misma idea que en `.env` local).
 4. **Previews / ramas**: si un deploy de preview usa la **misma** `DATABASE_URL` que producción, cada build también ejecutará `db push` (el esquema queda al día; conviene que sea consciente o usar otra base para previews).
 5. **Seed / primer usuario**: categorías con `db:seed` si hace falta; usuario inicial desde **`/setup`** en el navegador. Para poblar producción sin abrir la app en local: `db:seed:production` con env descargado.
 6. **PDF en serverless**: la lectura de PDF (`pdf-parse`) se carga **solo al importar un archivo**, no al abrir `/imports`. Worker de pdfjs: `PDFParse.setWorker` + ruta `file://` (`lib/pdf-worker-path.ts`) y `serverComponentsExternalPackages` en `next.config.mjs` — detalle en **[BACKLOG.md — Nota: PDF en serverless](./BACKLOG.md#nota-pdf-en-serverless-vercel)**.
@@ -240,12 +242,12 @@ El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 
 | Prioridad | Temas principales |
 |-----------|-------------------|
-| **P0** | **Puerta `APP_PASSWORD`** (implementada: `/login` + cookie); auth por usuario / **admin** y **dashboard de operaciones** al salir al público; variables en Vercel; onboarding guiado; idioma/moneda (ej. ARS). |
+| **P0** | Auth por **usuario** / **admin** y **dashboard de operaciones** al salir al público; variables en Vercel (incl. `APP_PASSWORD` si aplica); onboarding guiado; idioma/moneda (ej. ARS). |
 | **P1** | Cuotas y seguimiento mensual; bonificaciones/reintegros + KPI; millas/puntos + KPI; **adicionales de tarjeta** (alta/edición, detección en consumos importados, KPI en dashboard); **Google Calendar al importar** (cerrar flujo: duplicados, errores visibles); plantilla/validación CSV; categorías editables en UI; PWA; pull-to-refresh; migraciones Prisma formales. |
 | **QA** | Validar import CSV/PDF + evento en Google Calendar en tu entorno. |
 | **P2** | Tests (incl. parsers), observabilidad, multi-usuario real, export CSV/Excel, mejoras OCR/plantillas. |
 
-**Deuda conocida:** sin login multi-usuario, i18n mixta, moneda fija en UI (`formatCurrency`), WhatsApp no integrado; parsers PDF para **más** bancos = ampliar según necesidad. Los **bonos de sueldo** figuran en Configuración y en la evolución; no entran aún en el tope del dashboard (ver BACKLOG).
+**Deuda conocida:** la **puerta global** `APP_PASSWORD` ya está en el código; falta **login por cuenta**, roles **admin** y dashboard de métricas (ver BACKLOG). Sin multi-usuario real todavía; i18n mixta; moneda fija en UI (`formatCurrency`); WhatsApp no integrado; parsers PDF para **más** bancos = ampliar según necesidad. Los **bonos de sueldo** figuran en Configuración y en la evolución; no entran aún en el tope del dashboard (ver BACKLOG).
 
 ---
 
