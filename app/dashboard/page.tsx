@@ -26,6 +26,7 @@ import { explainBudgetComputation, explainOverspendVersusSavings } from "@/lib/c
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { prisma } from "@/lib/prisma";
 
 export default async function DashboardPage({
   searchParams,
@@ -46,17 +47,31 @@ export default async function DashboardPage({
     await getMonthFinancials(userId, month, year);
   await syncAlertsForMonth(userId, month, year, percentConsumed, config.id);
 
-  const [categoryTotals, monthRows, cardSpend, alerts, recentExpenses, totalNetRegistered, monthsWithIncome, paymentBreakdown] =
-    await Promise.all([
-      getCategoryTotalsForMonth(userId, month, year),
-      getMonthlySummaries(userId, 6),
-      spendingByCardForMonth(userId, month, year),
-      listDashboardAlerts(userId, month, year, 12),
-      listExpensesForMonth(userId, month, year),
-      sumRegisteredNetIncome(userId),
-      countMonthsWithNetIncome(userId),
-      getStatementPaymentsBreakdownForMonth(userId, month, year),
-    ]);
+  const [
+    categoryTotals,
+    monthRows,
+    cardSpend,
+    alerts,
+    recentExpenses,
+    totalNetRegistered,
+    monthsWithIncome,
+    paymentBreakdown,
+    creditCardCount,
+  ] = await Promise.all([
+    getCategoryTotalsForMonth(userId, month, year),
+    getMonthlySummaries(userId, 6),
+    spendingByCardForMonth(userId, month, year),
+    listDashboardAlerts(userId, month, year, 12),
+    listExpensesForMonth(userId, month, year),
+    sumRegisteredNetIncome(userId),
+    countMonthsWithNetIncome(userId),
+    getStatementPaymentsBreakdownForMonth(userId, month, year),
+    prisma.creditCard.count({ where: { userId } }),
+  ]);
+
+  const hasNetIncomeForMonth =
+    config.monthlyIncome != null && Number(config.monthlyIncome) > 0;
+  const showOnboarding = creditCardCount === 0 || !hasNetIncomeForMonth;
 
   const breakdown = explainBudgetComputation({
     monthlyIncome: config.monthlyIncome,
@@ -117,6 +132,45 @@ export default async function DashboardPage({
           </div>
         </div>
       </div>
+
+      {showOnboarding ? (
+        <div className="space-y-3">
+          {creditCardCount === 0 ? (
+            <Alert className="border-primary/30 bg-primary/5">
+              <Sparkles className="h-4 w-4" />
+              <AlertTitle>Empezá con una tarjeta</AlertTitle>
+              <AlertDescription className="text-sm leading-relaxed">
+                Todavía no cargaste ninguna. En{" "}
+                <Link href="/cards" className="font-medium text-foreground underline underline-offset-4">
+                  Cards
+                </Link>{" "}
+                podés dar de alta banco, cierre y vencimiento: hace falta para importar resúmenes y ver el gasto por
+                plástico en este panel.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {!hasNetIncomeForMonth ? (
+            <Alert className="border-amber-600/40 bg-amber-500/5 dark:border-amber-500/35">
+              <Wallet className="h-4 w-4 text-amber-800 dark:text-amber-400" />
+              <AlertTitle>Cargá el sueldo neto de este mes</AlertTitle>
+              <AlertDescription className="text-sm leading-relaxed">
+                Sin ingreso neto en{" "}
+                <strong>
+                  {format(new Date(year, month - 1, 1), "MMMM yyyy")}
+                </strong>{" "}
+                el tope queda en cero o sin base clara. Entrá a{" "}
+                <Link
+                  href={`/settings?month=${month}&year=${year}`}
+                  className="font-medium text-foreground underline underline-offset-4"
+                >
+                  Configuración
+                </Link>{" "}
+                y cargá el sueldo (podés estimarlo y corregirlo después).
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
+      ) : null}
 
       <Alert id="panel-mes-tarjeta">
         <AlertTitle>Lectura simple</AlertTitle>
