@@ -17,9 +17,9 @@ import { Button } from "@/components/ui/button";
 const nav = [
   { href: "/dashboard", label: "CuantoQueda", icon: LayoutDashboard },
   { href: "/settings", label: "Configuración", icon: Settings },
-  { href: "/cards", label: "Cards", icon: CreditCard },
-  { href: "/expenses", label: "Expenses", icon: Receipt },
-  { href: "/reports", label: "Reports", icon: PieChart },
+  { href: "/cards", label: "Tarjetas", icon: CreditCard },
+  { href: "/expenses", label: "Gastos", icon: Receipt },
+  { href: "/reports", label: "Informes", icon: PieChart },
   { href: "/imports", label: "Resúmenes", icon: Upload },
 ];
 

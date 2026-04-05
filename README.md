@@ -116,6 +116,8 @@ Copiá `.env.example` a `.env`. **No subas `.env`** al repositorio.
 |----------|-------------|-------------|
 | `DATABASE_URL` | Sí | PostgreSQL, ej. Neon: `postgresql://...?sslmode=require` |
 | `NEXT_PUBLIC_APP_URL` | Recomendado | URL pública: `http://localhost:3000` o `https://tu-app.vercel.app` (OAuth y enlaces). |
+| `NEXT_PUBLIC_LOCALE` | No | Por defecto `es-AR`. Formato de números/moneda en la UI (`Intl`). |
+| `NEXT_PUBLIC_CURRENCY` | No | Por defecto `ARS`. Código ISO de moneda para `formatCurrency` (sueldos, topes, gastos). |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google Calendar OAuth. Redirect: `{NEXT_PUBLIC_APP_URL}/api/google-calendar/callback` |
 | `TELEGRAM_BOT_TOKEN` | No | Bot creado con @BotFather; para alertas por Telegram. |
 | `RESEND_API_KEY` / `RESEND_FROM` | No | Envío de emails (dominio verificado en Resend). |
@@ -229,7 +231,7 @@ app/                 # Rutas Next (dashboard, settings, setup, imports, API OAut
 actions/             # Server Actions (p. ej. bonos de sueldo)
 components/          # UI, formularios, gráficos, layout
 db/prisma/           # schema.prisma, seed, wipe-all-data.ts
-lib/                 # Prisma client, cálculos, parsers (CSV, import unificado, Brubank/BBVA/Banco Nación), fechas DD-Mmm-YY, BCRA USD, OCR comprobantes, Calendar, notificaciones
+lib/                 # Prisma client, locale-config (NEXT_PUBLIC_LOCALE/CURRENCY), cálculos, parsers (CSV…), BCRA USD, OCR, Calendar, notificaciones
 services/            # Presupuesto, gastos, alertas, bonos de sueldo, importación de resúmenes, pagos por vencimiento
 BACKLOG.md           # Backlog detallado MVP (pendientes y deuda)
 ```
@@ -242,12 +244,12 @@ El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 
 | Prioridad | Temas principales |
 |-----------|-------------------|
-| **P0** | Auth por **usuario** / **admin** y **dashboard de operaciones** al salir al público; variables en Vercel (incl. `APP_PASSWORD` si aplica); idioma/moneda (ej. ARS). |
+| **P0** | Auth por **usuario** / **admin** y **dashboard de operaciones** al salir al público; variables en Vercel (incl. `APP_PASSWORD` si aplica). |
 | **P1** | Cuotas y seguimiento mensual; bonificaciones/reintegros + KPI; millas/puntos + KPI; **adicionales de tarjeta** (alta/edición, detección en consumos importados, KPI en dashboard); **Google Calendar al importar** (cerrar flujo: duplicados, errores visibles); plantilla/validación CSV; categorías editables en UI; PWA; pull-to-refresh; migraciones Prisma formales. |
 | **QA** | Validar import CSV/PDF + evento en Google Calendar en tu entorno. |
 | **P2** | Tests (incl. parsers), observabilidad, multi-usuario real, export CSV/Excel, mejoras OCR/plantillas. |
 
-**Deuda conocida:** la **puerta global** `APP_PASSWORD` ya está en el código; falta **login por cuenta**, roles **admin** y dashboard de métricas (ver BACKLOG). Sin multi-usuario real todavía; i18n mixta; moneda fija en UI (`formatCurrency`); WhatsApp no integrado; parsers PDF para **más** bancos = ampliar según necesidad. Los **bonos de sueldo** figuran en Configuración y en la evolución; no entran aún en el tope del dashboard (ver BACKLOG).
+**Deuda conocida:** la **puerta global** `APP_PASSWORD` ya está en el código; falta **login por cuenta**, roles **admin** y dashboard de métricas (ver BACKLOG). Sin multi-usuario real todavía; puede quedar **copy en inglés** en pantallas puntuales; **`NEXT_PUBLIC_LOCALE` / `NEXT_PUBLIC_CURRENCY`** parametrizan montos y `lang` (por defecto `es-AR` / `ARS`). WhatsApp no integrado; parsers PDF para **más** bancos = ampliar según necesidad. Los **bonos de sueldo** figuran en Configuración y en la evolución; no entran aún en el tope del dashboard (ver BACKLOG).
 
 ---
 

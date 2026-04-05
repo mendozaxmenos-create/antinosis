@@ -1,4 +1,5 @@
 import { format, isValid } from "date-fns";
+import { appCurrency, appLocale } from "@/lib/locale-config";
 
 /** Evita 500 si una fecha es inválida o viene mal de la BD (date-fns `format` lanza). Acepta ISO string (props cliente). */
 export function safeFormatDate(d: Date | string | null | undefined, pattern: string, empty = "—"): string {
@@ -24,20 +25,18 @@ export function safeFormatMonthYearLabel(month: number, year: number, pattern: s
   }
 }
 
-export function formatCurrency(value: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", {
+/** Montos de la app (sueldos, topes, gastos en moneda local). Por defecto `NEXT_PUBLIC_CURRENCY` + `NEXT_PUBLIC_LOCALE`. */
+export function formatCurrency(value: number, currency: string = appCurrency): string {
+  return new Intl.NumberFormat(appLocale, {
     style: "currency",
     currency,
     maximumFractionDigits: 0,
   }).format(value);
 }
 
+/** Alias explícito en pesos (importaciones que ya están en ARS). */
 export function formatArs(value: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatCurrency(value, "ARS");
 }
 
 export function formatUsd(value: number): string {

@@ -23,7 +23,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Área | Qué incluye |
 |------|-------------|
-| **Stack** | Next.js 14 (App Router), Prisma 5, PostgreSQL (Neon), deploy Vercel; **middleware** opcional con `APP_PASSWORD` (`/login`, cookie) |
+| **Stack** | Next.js 14 (App Router), Prisma 5, PostgreSQL (Neon), deploy Vercel; **middleware** opcional con `APP_PASSWORD` (`/login`, cookie); **`NEXT_PUBLIC_LOCALE`** / **`NEXT_PUBLIC_CURRENCY`** (default `es-AR` / `ARS`) para `formatCurrency` y `<html lang>` |
 | **Build** | `scripts/vercel-build.js`: en **Vercel** corre `prisma db push` + `generate` + `next build`; en local solo `generate` + `next build`. `DATABASE_URL` obligatoria en Vercel para el push. |
 | **Esquema** | Usuario (alertas: canal, email, Telegram; OAuth Google Calendar), tarjetas, categorías, gastos (incl. `statementImportId` opcional hacia `StatementImport`), `MonthlyBudgetConfig`, `SalaryBonus` (bonos de sueldo por mes/año), `StatementImport` (vencimiento, evento Calendar), conciliación, `AlertEvent` |
 | **Seed** | Solo categorías (`npm run db:seed`); sin datos de demo |
@@ -67,10 +67,10 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | Tema | Detalle |
 |------|---------|
 | **Auth por usuario** | La **puerta global** con `APP_PASSWORD` + `/login` + cookie ya está implementada (ver *Estado actual*). **Pendiente:** login por **cuenta** (no solo instalación), roles **admin**, Auth.js u OAuth Google por usuario (ver P0). |
-| **Admin / métricas de producto** | No existe **dashboard de operaciones** para el dueño de la app: usuarios activos, en **modo prueba** / trial, **canon o ingreso mensual** (suscripción), u otras métricas al salir al público. Sin **rol admin** ni acceso dedicado desde la UI del cliente (ver P0 ítems 3–5). |
+| **Admin / métricas de producto** | No existe **dashboard de operaciones** para el dueño de la app: usuarios activos, en **modo prueba** / trial, **canon o ingreso mensual** (suscripción), u otras métricas al salir al público. Sin **rol admin** ni acceso dedicado desde la UI del cliente (ver P0 ítems 2–4). |
 | **Single-tenant** | Un solo perfil vía `/setup`; no hay multi-cuenta. |
-| **i18n** | Mezcla ES/EN en algunas etiquetas o mensajes legacy. |
-| **Moneda** | `formatCurrency` orientado a USD; sin `NEXT_PUBLIC_CURRENCY` / ARS. |
+| **i18n** | La navegación principal y metadatos por defecto en **español**; puede quedar **inglés residual** en alguna pantalla o componente (revisión fina pendiente). |
+| **Moneda** | **Resuelto en código:** `formatCurrency` usa `NEXT_PUBLIC_CURRENCY` + `NEXT_PUBLIC_LOCALE` (por defecto ARS / es-AR). `formatUsd` sigue para montos explícitos en dólares en importaciones. |
 | **Bonos de sueldo vs CuantoQueda** | Los **bonos** registrados en Configuración suman en la **evolución** (neto + bonos por mes) y en la tabla de bonos; **no** modifican el tope de gasto manual ni los KPI principales del dashboard (solo el sueldo neto guardado). Opcional futuro: reflejar bonos en ingreso de referencia del mes en `/dashboard`. |
 | **Cuotas** | Sin seguimiento por cuota: hoy los movimientos en cuotas no se proyectan mes a mes (importe restante, N de cuota, vencimiento por mes). Ver pendiente P1. |
 | **Adicionales de tarjeta** | Sin datos de titulares adicionales en el alta/edición de tarjeta; el import no asocia consumos a un adicional; dashboard sin KPI por adicional (ver P1). |
@@ -102,11 +102,10 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ### P0 — Seguridad y pulido esencial
 
-1. **Variables en Vercel** — `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, OAuth Google si aplica; si usás alertas: `TELEGRAM_BOT_TOKEN` y/o Resend; si usás **puerta de acceso**, definir también **`APP_PASSWORD`** en el proyecto; verificar dominio de callback OAuth.
-2. **Idioma y moneda** — Unificar copy en español (o inglés) y parametrizar moneda/locale para Argentina.
-3. **Contraseña y rol admin (cuenta propietario)** — Permitir **setear contraseña** (y sesión) para al menos un usuario **administrador** (el dueño del producto o cuenta principal), distinto o complementario a un `APP_PASSWORD` global. Base para auditar quién entra como admin vs usuario final.
-4. **Dashboard de operaciones (métricas de la app)** — Para el **lanzamiento al público general**: vista protegida solo para admin con **métricas de negocio** — p. ej. **cantidad de usuarios activos**, usuarios en **modo prueba** / trial, **canon o ingreso mensual** recurrente (MRR), y otras KPIs que definas (registros, churn, uso). Depende de modelo de datos multi-usuario / suscripción y de instrumentación.
-5. **Acceso al panel admin desde la app cliente** — En el **dashboard del cliente** (p. ej. CuantoQueda / layout principal), un acceso explícito para quien sea admin: **“Ver panel de administración”** o **modo admin**, que lleve al dashboard de métricas (ítem 4) sin confundirlo con el flujo normal de gastos y presupuesto.
+1. **Variables en Vercel** — `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, OAuth Google si aplica; si usás alertas: `TELEGRAM_BOT_TOKEN` y/o Resend; si usás **puerta de acceso**, definir también **`APP_PASSWORD`**; opcional **`NEXT_PUBLIC_LOCALE`** / **`NEXT_PUBLIC_CURRENCY`** si no querés el default `es-AR` / `ARS`; verificar dominio de callback OAuth.
+2. **Contraseña y rol admin (cuenta propietario)** — Permitir **setear contraseña** (y sesión) para al menos un usuario **administrador** (el dueño del producto o cuenta principal), distinto o complementario a un `APP_PASSWORD` global. Base para auditar quién entra como admin vs usuario final.
+3. **Dashboard de operaciones (métricas de la app)** — Para el **lanzamiento al público general**: vista protegida solo para admin con **métricas de negocio** — p. ej. **cantidad de usuarios activos**, usuarios en **modo prueba** / trial, **canon o ingreso mensual** recurrente (MRR), y otras KPIs que definas (registros, churn, uso). Depende de modelo de datos multi-usuario / suscripción y de instrumentación.
+4. **Acceso al panel admin desde la app cliente** — En el **dashboard del cliente** (p. ej. CuantoQueda / layout principal), un acceso explícito para quien sea admin: **“Ver panel de administración”** o **modo admin**, que lleve al dashboard de métricas (ítem 3) sin confundirlo con el flujo normal de gastos y presupuesto.
 
 ### P1 — Producto
 
@@ -139,7 +138,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Listo | Pendiente destacado |
 |-------|----------------------|
-| Ingresos/límites con **vencimientos de tarjeta en el mes**, **bonos de sueldo + evolución neto/bonos en Configuración**, **puerta opcional `APP_PASSWORD`** (`/login`, cookie), **onboarding** en CuantoQueda y Cards (alertas / vacíos), KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth por usuario** + **admin** (contraseña, rol), **dashboard de operaciones** (usuarios activos, trial, canon/MRR) y **acceso admin desde la app**; moneda/locale; **Calendar al importar resumen**; bonificaciones/reintegros + KPI; millas/puntos; adicionales de tarjeta; cuotas; categorías; PWA/pull-to-refresh; tests; migraciones |
+| Ingresos/límites con **vencimientos de tarjeta en el mes**, **bonos de sueldo + evolución neto/bonos en Configuración**, **puerta opcional `APP_PASSWORD`** (`/login`, cookie), **onboarding** en CuantoQueda y Cards (alertas / vacíos), **locale/moneda** (`es-AR` / `ARS` por defecto), KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth por usuario** + **admin** (contraseña, rol), **dashboard de operaciones** (usuarios activos, trial, canon/MRR) y **acceso admin desde la app**; **Calendar al importar resumen**; bonificaciones/reintegros + KPI; millas/puntos; adicionales de tarjeta; cuotas; categorías; PWA/pull-to-refresh; tests; migraciones |
 
 ---
 

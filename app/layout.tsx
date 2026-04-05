@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
+import { getHtmlLang } from "@/lib/locale-config";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "CardSpend — Credit card spending tracker",
-  description: "Track monthly credit card spending, limits, and alerts.",
+  title: "CardSpend — Gasto en tarjeta y CuantoQueda",
+  description:
+    "Controlá el gasto con tarjeta: ingresos, tope mensual, resúmenes importados y alertas.",
 };
 
 export default function RootLayout({
@@ -16,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang={getHtmlLang()}>
       <body className={`${inter.variable} min-h-screen font-sans`}>
         <AppShell>{children}</AppShell>
       </body>
