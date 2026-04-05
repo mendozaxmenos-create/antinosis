@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
 import { getDefaultUserId } from "@/lib/user";
 import { currentMonthYear } from "@/lib/helpers";
-import { format } from "date-fns";
+import { safeFormatDate, safeFormatMonthYearLabel } from "@/lib/helpers";
 import { StatementUploadForm } from "@/components/forms/statement-upload-form";
 import { GoogleCalendarConnect } from "@/components/integrations/google-calendar-connect";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -26,7 +26,7 @@ export default async function ImportsPage({
   const googleConfigured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
   const [user, imports, reconciliations, cards] = await Promise.all([
-    prisma.user.findUniqueOrThrow({
+    prisma.user.findUnique({
       where: { id: userId },
       select: { googleRefreshToken: true, googleCalendarEmail: true },
     }),
@@ -46,6 +46,10 @@ export default async function ImportsPage({
       orderBy: { createdAt: "asc" },
     }),
   ]);
+
+  if (!user) {
+    redirect("/setup");
+  }
 
   return (
     <div className="space-y-8">
@@ -130,12 +134,10 @@ export default async function ImportsPage({
                     <TableCell>{row.bank}</TableCell>
                     <TableCell className="font-mono text-xs">{row.fileName}</TableCell>
                     <TableCell>
-                      {format(new Date(row.importYear, row.importMonth - 1, 1), "MMM yyyy")}
+                      {safeFormatMonthYearLabel(row.importMonth, row.importYear, "MMM yyyy")}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">
-                      {row.paymentDueDate
-                        ? format(row.paymentDueDate, "d MMM yyyy")
-                        : "—"}
+                      {safeFormatDate(row.paymentDueDate, "d MMM yyyy")}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{row.status}</Badge>
@@ -148,7 +150,7 @@ export default async function ImportsPage({
                       )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground text-sm">
-                      {format(row.createdAt, "d MMM yyyy")}
+                      {safeFormatDate(row.createdAt, "d MMM yyyy")}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -179,7 +181,7 @@ export default async function ImportsPage({
               <TableBody>
                 {reconciliations.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell>{format(new Date(r.year, r.month - 1, 1), "MMM yyyy")}</TableCell>
+                    <TableCell>{safeFormatMonthYearLabel(r.month, r.year, "MMM yyyy")}</TableCell>
                     <TableCell className="text-right">{r.matchedCount}</TableCell>
                     <TableCell className="text-right">{r.unmatchedManualCount}</TableCell>
                     <TableCell className="text-right">{r.unmatchedImportedCount}</TableCell>

@@ -69,6 +69,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | **Cuotas** | Sin seguimiento por cuota: hoy los movimientos en cuotas no se proyectan mes a mes (importe restante, N de cuota, vencimiento por mes). Ver pendiente P1. |
 | **Bonificaciones / reintegros** | En resúmenes suelen aparecer como BONIF, promos o créditos; hoy el import puede ignorarlos. Pendiente: capturarlos y un KPI dedicado (ver P1). |
 | **Fidelización (millas / puntos)** | Sin tracking de programas tipo Millas BBVA, Aerolíneas Plus, etc.; pendiente modelo + KPI (ver P1). |
+| **Google Calendar y resúmenes** | Ya se intenta crear un evento de vencimiento al importar si hay OAuth; falta cerrar el comportamiento deseado de punta a punta (feedback, duplicados, fallos). Ver P1. |
 | **Tests** | Sin e2e/unit automatizados. |
 | **PDF** | Import de **PDF de resumen Brubank** implementado; otros bancos: CSV o ampliar parsers. |
 | **Conciliación** | Modelo y datos; flujo “matched/unmatched” puede profundizarse. |
@@ -90,23 +91,24 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 5. **Compras en cuotas** — Vista o apartado que liste compras financiadas: cuotas totales, cuota actual, importe pendiente por mes de vencimiento (alineado al cierre/resumen de la tarjeta). Hoy el import guarda `installments` por defecto en 1; conviene parser por banco + modelo de “plan de cuotas” si hace falta.
 6. **Bonificaciones y reintegros en resúmenes** — Campo o entidad para movimientos de crédito del resumen (promociones del banco, BONIF, reintegros por compra). Sirve para **otro KPI**: reintegros del período, “ahorro efectivo” vs consumo bruto, evolución mes a mes. Los parsers hoy suelen descartar importes no positivos; habría que persistirlos aparte o con signo/clarificados.
 7. **Programas de fidelización** — Trackear saldos o movimientos de **Millas BBVA**, **Aerolíneas Plus**, u otros programas vinculados a la tarjeta (carga manual o extracto cuando exista). **Otro KPI** en dashboard: puntos/millas del mes, acumulado, vencimientos si aplica.
-8. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
-9. **Categorías** — CRUD en UI (hoy vienen del seed).
-10. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
-11. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
-12. **Prisma Migrate** — `migrate deploy` en release o documentación estricta de `db push` manual.
+8. **Google Calendar al subir un resumen** — Que cada importación de resumen (CSV/PDF) **registre el vencimiento de pago** en el Google Calendar del usuario cuando tenga cuenta OAuth vinculada. Incluye: comportamiento claro si no hay token, si la API falla, evitar duplicados al reimportar, texto/título del evento (tarjeta, importe a pagar si aplica) y validación en todos los parsers.
+9. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
+10. **Categorías** — CRUD en UI (hoy vienen del seed).
+11. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
+12. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
+13. **Prisma Migrate** — `migrate deploy` en release o documentación estricta de `db push` manual.
 
 ### QA / validación manual (pendiente de confirmar en tu entorno)
 
-- **Import de resumen + Google Calendar** — Probar flujo completo: `GOOGLE_*` + `NEXT_PUBLIC_APP_URL` en `.env` o Vercel; conectar Calendar en **Resúmenes**; subir CSV con movimientos; verificar que en Google Calendar aparezca un **evento de día completo** en la fecha de vencimiento calculada (según día de vencimiento de la tarjeta). Si falla, revisar consentimiento OAuth, redirect URI y logs del deploy.
+- **Import de resumen + Google Calendar** — Probar flujo completo: `GOOGLE_*` + `NEXT_PUBLIC_APP_URL` en `.env` o Vercel; conectar Calendar en **Resúmenes**; subir CSV o PDF; verificar que en Google Calendar aparezca un **evento de día completo** en la fecha de vencimiento calculada (según día de vencimiento de la tarjeta). Objetivo de producto (ver P1 ítem 8): que esto sea el comportamiento estable y visible para el usuario. Si falla, revisar consentimiento OAuth, redirect URI y logs del deploy.
 
 ### P2 — Calidad y escala
 
-13. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
-14. **Observabilidad** — Logs en imports/OAuth; página 500 amigable.
-15. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
-16. **Export** — CSV/Excel de gastos por rango.
-17. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
+14. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
+15. **Observabilidad** — Logs en imports/OAuth; página 500 amigable.
+16. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
+17. **Export** — CSV/Excel de gastos por rango.
+18. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
 
 ---
 
@@ -114,7 +116,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Listo | Pendiente destacado |
 |-------|----------------------|
-| Ingresos/límites con **vencimientos de tarjeta en el mes**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, **bonificaciones/reintegros y KPI**, **millas/puntos y KPI**, cuotas, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
+| Ingresos/límites con **vencimientos de tarjeta en el mes**, KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, **Calendar al importar resumen (cerrar flujo)**, **bonificaciones/reintegros y KPI**, **millas/puntos y KPI**, cuotas, categorías editables, PWA/pull-to-refresh, tests, migraciones formales |
 
 ---
 

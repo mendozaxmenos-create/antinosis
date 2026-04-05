@@ -1,38 +1,6 @@
 import type { ParsedStatementRow } from "@/lib/parse-statement-csv";
 import { parseAmountAr } from "@/lib/parse-amount-ar";
-
-/** Meses abreviados en resúmenes BBVA (inglés/español mezclados). */
-const BBVA_MONTH = new Map<string, number>([
-  ["ene", 1],
-  ["jan", 1],
-  ["feb", 2],
-  ["mar", 3],
-  ["abr", 4],
-  ["apr", 4],
-  ["may", 5],
-  ["jun", 6],
-  ["jul", 7],
-  ["ago", 8],
-  ["aug", 8],
-  ["sep", 9],
-  ["oct", 10],
-  ["nov", 11],
-  ["dic", 12],
-  ["dec", 12],
-]);
-
-function parseBbvaDate(s: string): Date | null {
-  const m = s.trim().match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2})$/);
-  if (!m) return null;
-  const day = Number(m[1]);
-  const monKey = m[2]!.toLowerCase();
-  const yy = Number(m[3]);
-  const month = BBVA_MONTH.get(monKey);
-  if (month == null || day < 1 || day > 31) return null;
-  const year = yy < 100 ? 2000 + yy : yy;
-  const d = new Date(year, month - 1, day, 12, 0, 0, 0);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
+import { parseDdMmmYy } from "@/lib/parse-dd-mmm-yy";
 
 function shouldSkipBbvaDescription(desc: string): boolean {
   const d = desc.trim().toLowerCase();
@@ -73,7 +41,7 @@ export function parseBbvaStatementText(text: string): ParsedStatementRow[] {
     const m = line.match(LINE_RE);
     if (!m) continue;
 
-    const transactionDate = parseBbvaDate(m[1]!);
+    const transactionDate = parseDdMmmYy(m[1]!);
     if (!transactionDate) continue;
 
     const description = m[2]!.trim();
