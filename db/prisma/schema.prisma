@@ -98,7 +98,7 @@ model Expense {
   merchant             String?
   installments         Int                    @default(1)
   notes                String?
-  /// manual | imported_pdf | imported_file
+  /// manual | imported_pdf | imported_file | imported_manual (total resumen sin archivo)
   sourceType           String
   /// pending | matched | unmatched | adjusted
   reconciliationStatus String                 @default("pending")

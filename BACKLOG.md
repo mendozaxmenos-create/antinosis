@@ -75,33 +75,21 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | **Fidelización (millas / puntos)** | Sin tracking de programas tipo Millas BBVA, Aerolíneas Plus, etc.; pendiente modelo + KPI (ver P1). |
 | **Google Calendar y resúmenes** | Ya se intenta crear un evento de vencimiento al importar si hay OAuth; falta cerrar el comportamiento deseado de punta a punta (feedback, duplicados, fallos). Ver P1. |
 | **Tests** | Sin e2e/unit automatizados. |
-| **PDF** | Parsers de texto para **Brubank**, **BBVA**, **Banco Nación (MC/Nativa)**; otros bancos: **CSV** o nuevos parsers según formato. **Producción (Vercel):** ver [Seguir: PDF en serverless](#seguir-pdf-en-serverless-vercel). |
+| **PDF** | Parsers de texto para **Brubank**, **BBVA**, **Banco Nación (MC/Nativa)**; otros bancos: **CSV** o nuevos parsers según formato. **Vercel:** worker de pdfjs resuelto con `PDFParse.setWorker(file://…)` + `experimental.serverComponentsExternalPackages` — ver [Nota: PDF en serverless](#nota-pdf-en-serverless-vercel). |
 | **Conciliación** | Modelo y datos; flujo “matched/unmatched” puede profundizarse. |
 | **WhatsApp** | No integrado (API Meta/Twilio); documentado en UI. |
 
 ---
 
-## Seguir: PDF en serverless (Vercel)
+## Nota: PDF en serverless (Vercel)
 
-**Estado:** bloqueo al **subir un PDF** (estado de cuenta / resumen) en el deploy, aunque en local pueda funcionar.
+**Síntoma resuelto (abr 2026):** al subir un PDF en producción aparecía `Setting up fake worker failed` con `Cannot find module '.../.next/server/chunks/pdf.worker.mjs'`.
 
-**Error observado (abr 2026):**
+**Causa:** en Node, pdf.js usa un “fake worker” que hace `import(workerSrc)`; el default `./pdf.worker.mjs` lo reescribía Webpack a un chunk que no existe en `/var/task`.
 
-```text
-Setting up fake worker failed: "Cannot find module '/var/task/.next/server/chunks/pdf.worker.mjs' imported from /var/task/.next/server/chunks/....js"
-```
+**Implementación:** `PDFParse.setWorker()` con URL `file://` a `node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs` (`lib/pdf-worker-path.ts`), llamado antes de `new PDFParse`, y `experimental.serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist", "@napi-rs/canvas"]` en `next.config.mjs` para no forzar el bundle incorrecto del worker.
 
-**Qué pasa:** `pdf-parse` usa **`pdfjs-dist`**, que intenta levantar el **worker** (`pdf.worker.mjs`). En el bundle de **Next.js** en **Vercel** (`/var/task/`) ese path no se resuelve: el worker no queda empaquetado o la ruta apunta a un chunk inexistente.
-
-**Ya mitigado antes (no es este bug):** polyfills `DOMMatrix` / APIs DOM en Node (`lib/pdf-node-polyfills.ts`); dependencia directa `@napi-rs/canvas`; import dinámico de `pdf-parse` para no cargar pdfjs en cada GET de `/imports`.
-
-**Líneas de trabajo para la próxima sesión:**
-
-1. Revisar en `pdf-parse` / `pdfjs-dist` si en **Node** se puede forzar **modo sin worker** o `GlobalWorkerOptions.workerSrc` apuntando a un archivo **copiado** al output (`next.config` → `webpack` `copy` desde `node_modules/pdfjs-dist/build`).
-2. Probar **`serverExternalPackages`** (Next 14) para `pdfjs-dist` / `pdf-parse` y verificar trazas en build.
-3. Alternativa: librería de **solo extracción de texto** en servidor que no dependa del worker de pdfjs, o build **legacy** de pdfjs documentado para Node.
-
-**Archivos tocados hoy:** `app/actions.ts` (`statementFileToText`), `lib/pdf-node-polyfills.ts`, `package.json`.
+**Relacionado:** polyfills DOM (`lib/pdf-node-polyfills.ts`), import dinámico de `pdf-parse` en `statementFileToText` (`app/actions.ts`).
 
 ---
 

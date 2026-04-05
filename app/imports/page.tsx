@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { getDefaultUserId } from "@/lib/user";
 import { currentMonthYear, safeFormatDate, safeFormatMonthYearLabel } from "@/lib/helpers";
 import { loadImportsPageData } from "@/lib/imports-page-data";
+import { ManualStatementForm } from "@/components/forms/manual-statement-form";
 import { StatementUploadForm } from "@/components/forms/statement-upload-form";
 import { GoogleCalendarConnect } from "@/components/integrations/google-calendar-connect";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -53,10 +54,10 @@ export default async function ImportsPage({
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Importar resúmenes</h1>
         <p className="text-muted-foreground max-w-3xl">
-          Subí un <strong>CSV</strong> o el <strong>PDF</strong> del resumen (p. ej. Brubank): se registran movimientos
-          categorizados y (si conectaste Google) un evento de vencimiento. Eso{" "}
-          <strong>no descuenta del límite de gasto en curso</strong>; el total a pagar por vencimiento en el mes sí entra
-          en el cálculo del panel cuando importaste el resumen.
+          Subí un <strong>CSV</strong> o el <strong>PDF</strong> del resumen, o cargá el <strong>total a mano</strong> (p. ej.
+          crédito Mercado Pago sin archivo). Se registran movimientos o un único total, alerta de vencimiento y (si conectaste
+          Google) un evento en el calendario. Eso <strong>no descuenta del límite de gasto en curso</strong>; el total a pagar
+          por vencimiento en el mes sí entra en el panel como los demás resúmenes.
         </p>
       </div>
 
@@ -107,6 +108,21 @@ export default async function ImportsPage({
         email={user.googleCalendarEmail}
         configured={googleConfigured}
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumen manual (solo total)</CardTitle>
+          <CardDescription>
+            Para líneas de crédito o billeteras donde no tenés CSV/PDF: indicás el <strong>total a pagar</strong> del período.
+            Se guarda como un movimiento vinculado al resumen y suma al “a pagar” del mes del <strong>vencimiento</strong>,
+            igual que un archivo. Podés fijar la <strong>fecha de vencimiento</strong> si no coincide con la tarjeta
+            configurada (ej. primeros días del mes).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ManualStatementForm userId={userId} cards={cards} defaultMonth={month} defaultYear={year} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

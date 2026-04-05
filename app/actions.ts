@@ -8,7 +8,8 @@ import { getMonthFinancials, upsertBudgetConfig } from "@/services/budgetService
 import { syncAlertsForMonth } from "@/services/alertService";
 import { parseStatementFromText } from "@/lib/parse-statement-import";
 import { installPdfJsNodePolyfills } from "@/lib/pdf-node-polyfills";
-import { importStatementRows } from "@/services/statementImportService";
+import { getPdfjsLegacyWorkerSrc } from "@/lib/pdf-worker-path";
+import { importManualStatement, importStatementRows } from "@/services/statementImportService";
 
 /** Import dinámico: evita cargar pdfjs-dist al evaluar este módulo (GET /imports). Polyfills antes de pdf-parse (DOMMatrix en Node). */
 async function statementFileToText(file: File): Promise<string> {
@@ -18,6 +19,7 @@ async function statementFileToText(file: File): Promise<string> {
     installPdfJsNodePolyfills();
     const buf = Buffer.from(await file.arrayBuffer());
     const { PDFParse } = await import("pdf-parse");
+    PDFParse.setWorker(getPdfjsLegacyWorkerSrc());
     const parser = new PDFParse({ data: buf });
     try {
       const result = await parser.getText();
@@ -103,6 +105,10 @@ const expenseUpdate = expenseBase.extend({ id: z.string().min(1) });
 
 export async function updateExpenseAction(input: z.infer<typeof expenseUpdate>) {
   const data = expenseUpdate.parse(input);
+  const existing = await prisma.expense.findFirst({
+    where: { id: data.id, card: { userId: data.userId } },
+  });
+  if (!existing) throw new Error("Gasto no encontrado");
   const transactionDate = new Date(data.transactionDate);
   const postedMonth = transactionDate.getMonth() + 1;
   const postedYear = transactionDate.getFullYear();
@@ -121,6 +127,11 @@ export async function updateExpenseAction(input: z.infer<typeof expenseUpdate>) 
       categoryId: data.categoryId,
     },
   });
+  const oldMonth = existing.transactionDate.getMonth() + 1;
+  const oldYear = existing.transactionDate.getFullYear();
+  if (oldMonth !== postedMonth || oldYear !== postedYear) {
+    await refreshAlerts(data.userId, oldMonth, oldYear);
+  }
   await refreshAlerts(data.userId, postedMonth, postedYear);
   revalidatePath("/dashboard");
   revalidatePath("/expenses");
@@ -367,6 +378,82 @@ export async function importStatementCsvAction(formData: FormData): Promise<Impo
       }
     }
     const msg = e instanceof Error ? e.message : "Error al importar.";
+    return { ok: false, error: msg };
+  }
+}
+
+export async function importManualStatementAction(formData: FormData): Promise<ImportStatementResult> {
+  try {
+    const userId = String(formData.get("userId") ?? "");
+    const cardId = String(formData.get("cardId") ?? "");
+    const importMonth = Number(formData.get("importMonth"));
+    const importYear = Number(formData.get("importYear"));
+    const totalAmountArs = Number(String(formData.get("totalAmountArs") ?? "").replace(",", "."));
+    const paymentDueRaw = formData.get("paymentDueDate");
+    const label = String(formData.get("label") ?? "").trim();
+
+    if (!userId || !cardId) return { ok: false, error: "Faltan datos del formulario." };
+    if (!Number.isFinite(importMonth) || importMonth < 1 || importMonth > 12) {
+      return { ok: false, error: "Mes inválido." };
+    }
+    if (!Number.isFinite(importYear) || importYear < 2000) {
+      return { ok: false, error: "Año inválido." };
+    }
+    if (!Number.isFinite(totalAmountArs) || totalAmountArs <= 0) {
+      return { ok: false, error: "Indicá un total a pagar mayor a 0." };
+    }
+
+    let paymentDueDateIso: string | null = null;
+    if (typeof paymentDueRaw === "string" && paymentDueRaw.length >= 10) {
+      paymentDueDateIso = paymentDueRaw.slice(0, 10);
+    }
+
+    const { paymentDueDate } = await importManualStatement({
+      userId,
+      cardId,
+      importMonth,
+      importYear,
+      totalAmountArs,
+      paymentDueDateIso,
+      label: label || null,
+    });
+
+    try {
+      await refreshAlerts(userId, importMonth, importYear);
+      const dm = paymentDueDate.getMonth() + 1;
+      const dy = paymentDueDate.getFullYear();
+      if (dm !== importMonth || dy !== importYear) {
+        await refreshAlerts(userId, dm, dy);
+      }
+    } catch (alertErr) {
+      console.error("[importManualStatement] refreshAlerts", alertErr);
+    }
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath("/expenses");
+      revalidatePath("/reports");
+      revalidatePath("/imports");
+    } catch (revErr) {
+      console.error("[importManualStatement] revalidatePath", revErr);
+    }
+
+    return {
+      ok: true,
+      expensesCreated: 1,
+      paymentDueDate: paymentDueDate.toISOString(),
+    };
+  } catch (e) {
+    console.error("[importManualStatement]", e);
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      if (e.code === "P2022") {
+        return {
+          ok: false,
+          error:
+            "La base de datos no tiene columnas nuevas (desincronizada). En Vercel debería aplicarse con el deploy; si sigue igual, ejecutá `npx prisma db push` con la misma DATABASE_URL.",
+        };
+      }
+    }
+    const msg = e instanceof Error ? e.message : "Error al guardar el resumen manual.";
     return { ok: false, error: msg };
   }
 }

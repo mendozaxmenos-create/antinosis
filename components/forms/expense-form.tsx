@@ -32,22 +32,35 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+/** Fecha desde servidor (Date) o serializada a ISO string en cliente. */
+function toDateInputValue(d: Date | string): string {
+  if (typeof d === "string") return d.slice(0, 10);
+  return d.toISOString().slice(0, 10);
+}
+
+export type ExpenseFormEditValues = Pick<
+  Expense,
+  "id" | "amount" | "description" | "merchant" | "installments" | "notes" | "cardId" | "categoryId"
+> & { transactionDate: Date | string };
+
 export function ExpenseForm({
   userId,
   cards,
   categories,
   expense,
+  afterSubmit,
 }: {
   userId: string;
   cards: CreditCard[];
   categories: Category[];
-  expense?: Expense;
+  expense?: ExpenseFormEditValues;
+  afterSubmit?: () => void;
 }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: expense
       ? {
-          transactionDate: expense.transactionDate.toISOString().slice(0, 10),
+          transactionDate: toDateInputValue(expense.transactionDate),
           amount: expense.amount,
           description: expense.description ?? "",
           merchant: expense.merchant ?? "",
@@ -77,6 +90,7 @@ export function ExpenseForm({
       };
       if (expense) {
         await updateExpenseAction({ ...payload, id: expense.id });
+        afterSubmit?.();
       } else {
         await createExpenseAction(payload);
       }
@@ -158,7 +172,7 @@ export function ExpenseForm({
       </div>
       <div className="sm:col-span-2">
         <Button type="submit" disabled={pending || cards.length === 0}>
-          {pending ? "Saving…" : expense ? "Update expense" : "Add expense"}
+          {pending ? "Guardando…" : expense ? "Guardar cambios" : "Agregar gasto"}
         </Button>
       </div>
       </div>

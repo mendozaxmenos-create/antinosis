@@ -148,7 +148,7 @@ Tras `npm install` corre `postinstall` → `prisma generate`.
 3. **Variables** en el proyecto Vercel: como mínimo **`DATABASE_URL`** (obligatoria para que el build aplique el esquema) y `NEXT_PUBLIC_APP_URL` (URL real del deploy). Opcional: Google, Telegram, Resend.
 4. **Previews / ramas**: si un deploy de preview usa la **misma** `DATABASE_URL` que producción, cada build también ejecutará `db push` (el esquema queda al día; conviene que sea consciente o usar otra base para previews).
 5. **Seed / primer usuario**: categorías con `db:seed` si hace falta; usuario inicial desde **`/setup`** en el navegador. Para poblar producción sin abrir la app en local: `db:seed:production` con env descargado.
-6. **PDF en serverless**: la lectura de PDF (`pdf-parse`) se carga **solo al importar un archivo**, no al abrir `/imports`. Así no se ejecuta `pdfjs-dist` en cada GET (en Vercel faltaba `@napi-rs/canvas` y podía dar 500 al entrar a Resúmenes). **Pendiente en producción:** si al subir un PDF falla con `Cannot find module '.../pdf.worker.mjs'` / *Setting up fake worker failed*, es el worker de pdfjs que no resuelve en el bundle de Vercel — ver **[BACKLOG.md — Seguir: PDF en serverless](./BACKLOG.md#seguir-pdf-en-serverless-vercel)**.
+6. **PDF en serverless**: la lectura de PDF (`pdf-parse`) se carga **solo al importar un archivo**, no al abrir `/imports`. Worker de pdfjs: `PDFParse.setWorker` + ruta `file://` (`lib/pdf-worker-path.ts`) y `serverComponentsExternalPackages` en `next.config.mjs` — detalle en **[BACKLOG.md — Nota: PDF en serverless](./BACKLOG.md#nota-pdf-en-serverless-vercel)**.
 
 Cada **push a `main`** suele disparar un deploy automático (`npm run sync:github` o push manual).
 

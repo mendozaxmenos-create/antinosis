@@ -21,7 +21,7 @@ export function DeleteExpenseButton({
       disabled={pending}
       onClick={() => start(async () => deleteExpenseAction({ id, userId }))}
     >
-      {pending ? "…" : "Delete"}
+      {pending ? "…" : "Eliminar"}
     </Button>
   );
 }

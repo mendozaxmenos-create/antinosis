@@ -9,8 +9,19 @@ import { formatCurrency } from "@/lib/helpers";
 import { format } from "date-fns";
 import { ExpenseForm } from "@/components/forms/expense-form";
 import { DeleteExpenseButton } from "@/components/forms/delete-expense-button";
+import { EditExpenseDialog } from "@/components/forms/edit-expense-dialog";
 import { redirect } from "next/navigation";
 import { expenseWhereTransactionDateInCalendarMonth } from "@/lib/month-transaction-filter";
+
+function expenseSourceLabel(sourceType: string): string {
+  const map: Record<string, string> = {
+    manual: "Manual",
+    imported_file: "Resumen CSV",
+    imported_pdf: "Resumen PDF",
+    imported_manual: "Resumen manual",
+  };
+  return map[sourceType] ?? sourceType;
+}
 
 export default async function ExpensesPage() {
   const userId = await getDefaultUserId();
@@ -66,37 +77,43 @@ export default async function ExpensesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>This month</CardTitle>
-          <CardDescription>All tracked expenses</CardDescription>
+          <CardTitle>Movimientos del mes</CardTitle>
+          <CardDescription>
+            Manual e importados (CSV/PDF). Podés <strong>editar</strong> comercio, descripción o categoría si el resumen
+            trae un error (ej. “MAFTA” → nafta).
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Merchant</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Card</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead />
+                <TableHead>Fecha</TableHead>
+                <TableHead>Comercio</TableHead>
+                <TableHead>Categoría</TableHead>
+                <TableHead>Tarjeta</TableHead>
+                <TableHead>Origen</TableHead>
+                <TableHead className="text-right">Importe</TableHead>
+                <TableHead className="text-right w-[180px]">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {expenses.map((e) => (
                 <TableRow key={e.id}>
-                  <TableCell className="whitespace-nowrap">{format(e.transactionDate, "MMM d, yyyy")}</TableCell>
+                  <TableCell className="whitespace-nowrap">{format(e.transactionDate, "d MMM yyyy")}</TableCell>
                   <TableCell>{e.merchant ?? e.description ?? "—"}</TableCell>
                   <TableCell>{e.category.name}</TableCell>
                   <TableCell>
                     {e.card.bank} ·••• {e.card.last4}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{e.sourceType}</Badge>
+                    <Badge variant="outline">{expenseSourceLabel(e.sourceType)}</Badge>
                   </TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(e.amount)}</TableCell>
                   <TableCell className="text-right">
-                    <DeleteExpenseButton id={e.id} userId={userId} />
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <EditExpenseDialog userId={userId} cards={cards} categories={categories} expense={e} />
+                      <DeleteExpenseButton id={e.id} userId={userId} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
