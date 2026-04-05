@@ -14,7 +14,8 @@
     "db:wipe": "tsx db/prisma/wipe-all-data.ts",
     "db:wipe:production": "dotenv -o -e .env -e .env.production.local -- tsx db/prisma/wipe-all-data.ts",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "sync:github": "git add -A && git diff --staged --quiet || (git commit -m \"chore: sync\" && git push origin main)"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
