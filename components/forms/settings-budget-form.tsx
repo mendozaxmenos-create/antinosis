@@ -95,12 +95,15 @@ export function SettingsBudgetForm({
   month,
   year,
   monthLabels,
+  cardPaymentsDueInMonth,
   initial,
 }: {
   userId: string;
   month: number;
   year: number;
   monthLabels: { value: number; label: string }[];
+  /** Total a pagar por resúmenes con vencimiento en el mes seleccionado (solo lectura; viene de importaciones). */
+  cardPaymentsDueInMonth: number;
   initial: {
     monthlyIncome: number | null;
     soledadCashTransfer: number;
@@ -141,8 +144,15 @@ export function SettingsBudgetForm({
         manualCardLimit: watched.manualCardLimit ?? null,
         soledadCashTransfer: watched.soledadCashTransfer ?? 0,
         savingsPercentage: watched.savingsPercentage ?? 0,
+        cardPaymentsDueInMonth,
       }),
-    [watched.monthlyIncome, watched.soledadCashTransfer, watched.savingsPercentage, watched.manualCardLimit],
+    [
+      watched.monthlyIncome,
+      watched.soledadCashTransfer,
+      watched.savingsPercentage,
+      watched.manualCardLimit,
+      cardPaymentsDueInMonth,
+    ],
   );
 
   function onSubmit(values: FormValues) {
@@ -172,8 +182,8 @@ export function SettingsBudgetForm({
       <CardHeader>
         <CardTitle>Límite mensual en tarjeta</CardTitle>
         <CardDescription>
-          Sueldo neto del mes, transferencias en efectivo y porcentaje de ahorro sobre lo disponible. Los datos se
-          guardan en la base en la nube junto con el mes y año elegidos.
+          Sueldo neto, Soledad, pagos de tarjeta con vencimiento en el mes (según resúmenes importados) y % de ahorro
+          sobre lo que queda. Los datos se guardan junto con el mes y año elegidos.
         </CardDescription>
         <MonthYearNav month={month} year={year} labels={monthLabels} />
       </CardHeader>
@@ -193,7 +203,7 @@ export function SettingsBudgetForm({
                 min={0}
                 {...form.register("soledadCashTransfer")}
               />
-              <p className="text-xs text-muted-foreground">Se descuenta del sueldo neto antes del ahorro y del límite.</p>
+              <p className="text-xs text-muted-foreground">Se descuenta del sueldo neto antes de los vencimientos de tarjeta y el ahorro.</p>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="savepct">% del disponible para ahorro</Label>
@@ -206,8 +216,8 @@ export function SettingsBudgetForm({
                 {...form.register("savingsPercentage")}
               />
               <p className="text-xs text-muted-foreground">
-                Sobre el monto (sueldo neto − Soledad). El resto es el tope para gasto en tarjeta (salvo que pongas un
-                tope manual abajo).
+                Sobre el monto que queda después de Soledad y de los pagos con vencimiento en este mes. El resto es el
+                tope para gasto en curso (salvo tope manual).
               </p>
             </div>
             <div className="space-y-2 sm:col-span-2">
@@ -222,12 +232,14 @@ export function SettingsBudgetForm({
             <ul className="space-y-1 text-muted-foreground">
               <li>Sueldo neto: {formatCurrency(preview.netSalary)}</li>
               <li>− Soledad (efectivo): {formatCurrency(preview.soledadCash)}</li>
-              <li>= Disponible: {formatCurrency(preview.baseAfterSoledad)}</li>
+              <li>= Tras Soledad: {formatCurrency(preview.baseAfterSoledad)}</li>
+              <li>− Pagos tarjeta (vencen este mes): {formatCurrency(preview.cardPaymentsDue)}</li>
+              <li>= Base para ahorro: {formatCurrency(preview.baseForSavings)}</li>
               <li>
                 − Ahorro ({preview.savingsPct.toFixed(1)}%): {formatCurrency(preview.savingsAmount)}
               </li>
               <li className="font-medium text-foreground pt-1">
-                Límite calculado para tarjeta: {formatCurrency(preview.limitFromRule)}
+                Límite calculado (gasto en curso): {formatCurrency(preview.limitFromRule)}
               </li>
               {preview.manualOverride != null && (
                 <li className="text-foreground">Usando tope manual: {formatCurrency(preview.manualOverride)}</li>

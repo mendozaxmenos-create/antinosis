@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/helpers";
 import { getDefaultUserId } from "@/lib/user";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateBudgetConfig, listBudgetHistory, sumRegisteredNetIncome } from "@/services/budgetService";
+import { mapStatementPaymentsDueByCalendarMonth } from "@/services/statementPaymentService";
 import { AlertChannelForm } from "@/components/forms/alert-channel-form";
 import { redirect } from "next/navigation";
 import { Cloud } from "lucide-react";
@@ -27,7 +28,7 @@ export default async function SettingsPage({
   const year =
     typeof rawY === "string" && rawY ? Math.max(2000, Math.min(2100, Number(rawY))) : cy;
 
-  const [config, history, totalNet, userPrefs] = await Promise.all([
+  const [config, history, totalNet, userPrefs, paymentsByDueMonth] = await Promise.all([
     getOrCreateBudgetConfig(userId, month, year),
     listBudgetHistory(userId, 200),
     sumRegisteredNetIncome(userId),
@@ -35,7 +36,10 @@ export default async function SettingsPage({
       where: { id: userId },
       select: { alertChannel: true, alertEmail: true, telegramChatId: true },
     }),
+    mapStatementPaymentsDueByCalendarMonth(userId),
   ]);
+
+  const cardPaymentsDueForSelectedMonth = paymentsByDueMonth.get(`${year}-${month}`) ?? 0;
 
   const monthLabels = Array.from({ length: 12 }, (_, i) => ({
     value: i + 1,
@@ -88,6 +92,7 @@ export default async function SettingsPage({
         month={month}
         year={year}
         monthLabels={monthLabels}
+        cardPaymentsDueInMonth={cardPaymentsDueForSelectedMonth}
         initial={{
           monthlyIncome: config.monthlyIncome,
           soledadCashTransfer: config.soledadCashTransfer ?? 0,
@@ -164,6 +169,7 @@ export default async function SettingsPage({
                           manualCardLimit: h.manualCardLimit,
                           soledadCashTransfer: h.soledadCashTransfer,
                           savingsPercentage: h.savingsPercentage,
+                          cardPaymentsDueInMonth: paymentsByDueMonth.get(`${h.year}-${h.month}`) ?? 0,
                         }),
                       )}
                     </TableCell>

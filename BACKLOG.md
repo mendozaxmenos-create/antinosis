@@ -2,13 +2,15 @@
 
 Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP usable en producción.
 
+**Última actualización:** abril 2026.
+
 ---
 
 ## Alcance del MVP (propuesta)
 
-- Una persona registra tarjetas, define tope mensual de gasto en tarjeta y carga gastos manuales.
-- Ve dashboard con avisos de umbral y, si configura Google, eventos de vencimiento en Calendar.
-- Puede importar movimientos desde **CSV** (no PDF) para registro y conciliación visual.
+- Una persona registra tarjetas, define ingresos/límite mensual en tarjeta y carga gastos manuales.
+- Ve dashboard con KPIs, avisos de umbral y (opcional) Google Calendar para vencimientos.
+- Puede importar movimientos desde **CSV** para registro; opcional alertas por **Telegram** o **email** (Resend).
 - **Un solo usuario** por instalación (sin login multi-cuenta en esta fase).
 
 ---
@@ -19,116 +21,92 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Área | Qué incluye |
 |------|-------------|
-| **Stack** | Next.js 14 (App Router), Prisma 5, PostgreSQL (Neon), Vercel-friendly build |
-| **Esquema** | Usuario, tarjetas, categorías, gastos, presupuesto mensual, umbrales de alerta, importaciones de resumen, resultados de conciliación, eventos de alerta |
-| **Seed** | Solo categorías base (`npm run db:seed`); sin datos de prueba |
-| **Setup** | `/setup` crea el primer usuario; `npm run db:wipe` / `db:wipe:production` limpia datos de usuario |
-| **Scripts** | `db:seed:production`, `db:wipe:production` con `dotenv-cli` para no depender de PowerShell |
+| **Stack** | Next.js 14 (App Router), Prisma 5, PostgreSQL (Neon), deploy Vercel |
+| **Build** | `prisma generate && next build` — **sin** `db push` en Vercel (esquema se aplica con `npx prisma db push` desde tu PC contra Neon) |
+| **Esquema** | Usuario (incl. preferencias de alerta: canal, email, Telegram chat id), tarjetas, categorías, gastos, `MonthlyBudgetConfig` (sueldo neto, Soledad, % ahorro, tope manual, umbrales), importaciones, conciliación, `AlertEvent` |
+| **Seed** | Solo categorías (`npm run db:seed`); sin datos de demo |
+| **Setup** | `/setup` primer usuario; `db:wipe` / `db:wipe:production` limpia datos de usuario |
+| **Git** | `npm run sync:github` — add, commit `chore: sync`, push `main` si hay cambios |
 
 ### Funcionalidad de producto
 
 | Módulo | Implementado |
 |--------|----------------|
-| **Dashboard** | Gauge de presupuesto, gasto por categoría/tarjeta, alertas (umbral + vencimientos), gastos recientes, insights texto |
-| **Budget** | Ingreso, % permitido sobre ingreso, tope manual opcional, umbrales 60–100%, `getOrCreateBudgetConfig` con defaults |
-| **Cards** | CRUD tarjetas (banco, nombre, marca, últimos 4, cierre/vencimiento) |
-| **Expenses** | Alta/baja/edición gastos manuales, categoría, tarjeta, mes contable |
-| **Reports** | Resúmenes mensuales, torta por categoría, barras comparativas, gasto por tarjeta |
-| **Imports / Resúmenes** | Importación **CSV** con parser flexible; categorización heurística; registro de importación; opcional Google Calendar para evento de vencimiento |
-| **Google Calendar** | OAuth (auth + callback), guardado de refresh token en usuario, conexión/desconexión en UI |
-| **Alertas** | Umbrales al superar % del tope (solo gastos `manual`); alertas de pago por import |
+| **Dashboard** | KPIs (neto, Soledad, ahorro, límite, gastos, importado, histórico ingresos), gauge, categorías/tarjeta, alertas, insights |
+| **Configuración** (`/settings`) | Mes/año, sueldo neto, efectivo a Soledad, % ahorro, tope manual, umbrales; evolución y tabla histórica de ingresos; canal de alertas (app / Telegram / email); texto datos en la nube |
+| **Cards / Expenses / Reports / Imports** | CRUD y reportes como antes; import CSV; Google Calendar OAuth en imports |
+| **Alertas** | Umbrales (gasto manual vs límite); vencimientos por import; mensajes en español en BD; **replicación** opcional a Telegram (`TELEGRAM_BOT_TOKEN` + chat id) o email (Resend: `RESEND_API_KEY`, `RESEND_FROM`) |
+| **Google Calendar** | OAuth, evento de vencimiento al importar si hay token |
 
-### Reglas de negocio explícitas
+### Telegram (alcance claro)
 
-- Límite mensual aplica solo a gastos **manuales**; importados no consumen el tope (`lib/expense-scope.ts`).
-- Primer usuario por `createdAt` = “cuenta activa” (`getDefaultUserId`).
+- **Solo sirve para recibir alertas** (mismo contenido que en el panel): umbrales de presupuesto y avisos de vencimiento de pago cuando corresponda.
+- **No** guarda datos ni reemplaza la app: el token del bot va en el servidor; el **chat id** en Configuración.
+- Si no configurás Telegram o elegís “Solo en la app”, todo sigue funcionando solo en CardSpend.
+
+### Reglas de negocio
+
+- Límite tarjeta = f(sueldo neto − Soledad) y % ahorro, salvo tope manual (`lib/calculations.ts`).
+- Solo gastos **manuales** cuentan para el tope (`lib/expense-scope.ts`).
+- Primer usuario = cuenta activa (`getDefaultUserId`).
 
 ### UI
 
-- Layout con navegación principal; `/setup` sin menú lateral de secciones.
-- Componentes tipo shadcn (cards, tablas, formularios, alertas).
-- Gráficos con Recharts.
+- Navegación: **Configuración** (antes Budget), Dashboard, Cards, Expenses, Reports, Resúmenes.
+- shadcn + Recharts.
 
 ---
 
-## Brechas conocidas (deuda / riesgo)
+## Brechas / deuda (siguen vigentes)
 
-- **Sin autenticación**: cualquiera con la URL puede usar la app si conoce el deployment (no hay sesión ni contraseña).
-- **Single-tenant frágil**: `createFirstUserAction` solo bloquea si ya hay filas en `User`; no hay cuentas ni invitaciones.
-- **i18n mezclada**: UI en inglés y español según pantalla.
-- **Moneda**: `formatCurrency` fija USD; Argentina u otra moneda no parametrizada en UI.
-- **Build en Vercel**: `prisma db push` en cada build muta el esquema; en equipos grandes conviene migraciones (`prisma migrate`) y pipeline aparte.
-- **Tests**: no hay suite automatizada (e2e/unit).
-- **PDF de resumen**: el modelo permite “imported_pdf” como concepto; el flujo actual es CSV, no extracción PDF.
-- **Conciliación**: campos y `reconciliationResult` existen; flujo “matched/unmatched” puede estar incompleto respecto al modelo mental del producto (revisar `statementImportService` y UI).
+| Tema | Detalle |
+|------|---------|
+| **Auth** | No hay login: quien tenga la URL puede entrar (salvo capas extra en Vercel). |
+| **Single-tenant** | Un solo perfil vía `/setup`; no hay multi-cuenta. |
+| **i18n** | Mezcla ES/EN en algunas etiquetas o mensajes legacy. |
+| **Moneda** | `formatCurrency` orientado a USD; sin `NEXT_PUBLIC_CURRENCY` / ARS. |
+| **Tests** | Sin e2e/unit automatizados. |
+| **PDF** | No hay import de PDF de resumen; solo CSV. |
+| **Conciliación** | Modelo y datos; flujo “matched/unmatched” puede profundizarse. |
+| **WhatsApp** | No integrado (API Meta/Twilio); documentado en UI. |
 
 ---
 
-## Backlog sugerido — por prioridad
+## Pendiente — priorizado
 
-### P0 — MVP “cerrable” para uso personal serio
+### P0 — Seguridad y pulido esencial
 
-1. **Proteger el acceso (mínimo)**  
-   - Opción A: **middleware** + contraseña compartida vía env (`APP_PASSWORD` + cookie firmada).  
-   - Opción B: **NextAuth / Auth.js** con un solo proveedor (Google) o credenciales.  
-   - Criterio: no exponer datos financieros sin ningún control en URL pública.
+1. **Proteger el acceso** — Middleware + contraseña en env (`APP_PASSWORD`) o Auth.js / login con Google.
+2. **Variables en Vercel** — `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, OAuth Google si aplica; si usás alertas: `TELEGRAM_BOT_TOKEN` y/o Resend; verificar dominio de callback OAuth.
+3. **Onboarding vacío** — Tras `/setup`, guiar: primera tarjeta + primera configuración de mes (banners o empty states en dashboard/cards).
+4. **Idioma y moneda** — Unificar copy en español (o inglés) y parametrizar moneda/locale para Argentina.
 
-2. **Variables de entorno documentadas para producción**  
-   - Lista canónica: `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, Google OAuth si aplica, y las nuevas claves de auth.  
-   - Comprobar redirect OAuth en dominio Vercel definitivo.
+### P1 — Producto
 
-3. **Flujo post-setup**  
-   - Tras crear usuario, redirigir o sugerir: “Agregá tu primera tarjeta” / “Configurá el presupuesto del mes” (empty states guiados en dashboard y cards).
+5. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
+6. **Categorías** — CRUD en UI (hoy vienen del seed).
+7. **PWA** — `manifest.json`, iconos, theme-color para móvil.
+8. **Prisma Migrate** — `migrate deploy` en release o documentación estricta de `db push` manual.
 
-4. **Revisión de copy y un solo idioma**  
-   - Elegir ES o EN para MVP y alinear strings (alertas aún en inglés: “% of monthly budget reached”).
+### QA / validación manual (pendiente de confirmar en tu entorno)
 
-5. **Moneda y locale**  
-   - `NEXT_PUBLIC_CURRENCY` o perfil de usuario + `Intl` para símbolo y separadores.
+- **Import de resumen + Google Calendar** — Probar flujo completo: `GOOGLE_*` + `NEXT_PUBLIC_APP_URL` en `.env` o Vercel; conectar Calendar en **Resúmenes**; subir CSV con movimientos; verificar que en Google Calendar aparezca un **evento de día completo** en la fecha de vencimiento calculada (según día de vencimiento de la tarjeta). Si falla, revisar consentimiento OAuth, redirect URI y logs del deploy.
 
-### P1 — Mejora de producto pre-usuarios externos
+### P2 — Calidad y escala
 
-6. **Importación de resumen**  
-   - Plantilla CSV descargable + ayuda en pantalla; validación de columnas más explícita.  
-   - Evaluar parser por banco (priorizar 1–2 bancos del mercado objetivo).
-
-7. **Edición de categorías**  
-   - Hoy son seed fijas; permitir renombrar/alta/baja sin tocar DB a mano.
-
-8. **Notificaciones**  
-   - Email o push fuera de alcance; al menos **recordatorio en UI** de vencimientos próximos (lista ya parcial en dashboard).
-
-9. **PWA o “Añadir a inicio”**  
-   - `manifest.json`, iconos, meta theme-color para uso móvil (ya usable en navegador; esto mejora UX).
-
-10. **Migraciones Prisma**  
-    - Sustituir o complementar `db push` en CI/prod con `migrate deploy`.
-
-### P2 — Escalabilidad y calidad
-
-11. **Tests**  
-    - Unit: `lib/calculations`, `parse-statement-csv`.  
-    - Integración: server actions críticas con DB de test.
-
-12. **Observabilidad**  
-    - Logging estructurado en imports y OAuth; página de error amigable.
-
-13. **Multi-usuario real**  
-    - Modelo de cuenta, login, aislamiento de datos por `userId` en todas las queries (ya está por usuario; falta auth).
-
-14. **Exportación**  
-    - CSV/Excel de gastos por rango de fechas.
+9. **Tests** — Cálculos, parser CSV, actions críticas.
+10. **Observabilidad** — Logs en imports/OAuth; página 500 amigable.
+11. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
+12. **Export** — CSV/Excel de gastos por rango.
 
 ---
 
 ## Resumen ejecutivo
 
-| | |
-|--|--|
-| **Sólido para MVP interno** | Presupuesto, tarjetas, gastos manuales, dashboard, alertas de umbral, import CSV, Google Calendar opcional, deploy Vercel + Neon. |
-| **Antes de compartir la URL** | Alguna forma de **control de acceso** + OAuth/callback alineados al dominio + moneda/locale coherentes. |
-| **Siguiente iteración de producto** | Categorías editables, mejor onboarding vacío, import por banco, PWA. |
+| Listo | Pendiente destacado |
+|-------|----------------------|
+| Ingresos/límites, KPIs, setup, alertas in-app + Telegram/email, CSV, Calendar opcional, deploy sin `db push` en build | **Auth**, moneda/locale, onboarding guiado, categorías editables, tests, migraciones formales |
 
 ---
 
-*Última revisión según código en repo (App Router, servicios y Prisma). Actualizar este archivo cuando cierren ítems o cambien el alcance del MVP.*
+*Actualizar este archivo al cerrar ítems o cambiar el alcance del MVP.*

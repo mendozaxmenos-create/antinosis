@@ -8,6 +8,7 @@ import {
 } from "@/lib/calculations";
 import type { MonthSummary } from "@/lib/calculations";
 import { filterExpensesForBudgetLimit, isExpenseAgainstBudget } from "@/lib/expense-scope";
+import { mapStatementPaymentsDueByCalendarMonth } from "@/services/statementPaymentService";
 
 export async function listExpensesForMonth(userId: string, month: number, year: number) {
   return prisma.expense.findMany({
@@ -43,6 +44,7 @@ export async function getMonthlySummaries(
 ): Promise<MonthSummary[]> {
   const now = new Date();
   const summaries: MonthSummary[] = [];
+  const paymentsByDueMonth = await mapStatementPaymentsDueByCalendarMonth(userId);
   for (let i = monthsBack - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const month = d.getMonth() + 1;
@@ -53,6 +55,7 @@ export async function getMonthlySummaries(
     const expenses = await prisma.expense.findMany({
       where: { postedMonth: month, postedYear: year, card: { userId } },
     });
+    const cardPaymentsDueInMonth = paymentsByDueMonth.get(`${year}-${month}`) ?? 0;
     const budget = config
       ? calculateMonthlyLimit({
           monthlyIncome: config.monthlyIncome,
@@ -60,6 +63,7 @@ export async function getMonthlySummaries(
           manualCardLimit: config.manualCardLimit,
           soledadCashTransfer: config.soledadCashTransfer,
           savingsPercentage: config.savingsPercentage,
+          cardPaymentsDueInMonth,
         })
       : 0;
     const enCurso = filterExpensesForBudgetLimit(expenses);

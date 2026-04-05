@@ -1,144 +1,109 @@
-# Antinosis — CardSpend
+# CardSpend
 
-Aplicación web para **controlar el gasto con tarjeta de crédito**: presupuesto mensual, seguimiento **en curso** (cargas manuales), importación de **resúmenes en CSV**, alertas por umbrales, informes históricos e integración opcional con **Google Calendar** (evento de vencimiento de pago al importar un resumen).
+Aplicación web para **controlar gasto con tarjeta de crédito**: presupuesto a partir de **sueldo neto**, transferencias, % de ahorro, seguimiento **en curso** (cargas manuales), importación de **resúmenes CSV**, alertas por umbrales y vencimientos, informes e integraciones opcionales (**Google Calendar**, **Telegram**, **email**).
 
-> **Nota:** El nombre del paquete npm es `antinosis`; en la UI la app se presenta como **CardSpend**.
+> El paquete npm se llama `antinosis`; en la UI la app se muestra como **CardSpend**.
 
 ---
 
-## Qué hace el proyecto
+## Tabla de contenidos
 
-| Área | Descripción |
+1. [Funcionalidades](#funcionalidades)  
+2. [Stack](#stack)  
+3. [Requisitos e instalación](#requisitos-e-instalación)  
+4. [Variables de entorno](#variables-de-entorno)  
+5. [Scripts npm](#scripts-npm)  
+6. [Deploy (Vercel)](#deploy-vercel)  
+7. [Integraciones opcionales](#integraciones-opcionales)  
+8. [Flujo de uso](#flujo-de-uso)  
+9. [Reglas de negocio](#reglas-de-negocio)  
+10. [Estructura del repo](#estructura-del-repo)  
+11. [Backlog y pendientes](#backlog-y-pendientes)  
+12. [Licencia](#licencia)
+
+---
+
+## Funcionalidades
+
+### Core
+
+| Área | Qué incluye |
 |------|-------------|
-| **Presupuesto** | Ingreso × % permitido, o **límite manual** (el manual gana). |
-| **Gasto en curso** | Solo las cargas **manuales** cuentan para el límite y los umbrales (60 %, 70 %, …). |
-| **Resúmenes importados** | CSV del banco: registra movimientos y categorías para análisis, **no resta del tope** (el cierre suele superar el límite que uno se impone). |
-| **Alertas** | Por presupuesto (umbrales) y por **vencimiento de pago** al importar un resumen. |
-| **Calendario** | Opcional: OAuth con Google para crear un evento el día del vencimiento estimado. |
+| **Primer uso** | Ruta `/setup`: creás el único perfil de la instalación (un usuario por base de datos). |
+| **Configuración** (`/settings`) | Por mes/año: **sueldo neto**, **efectivo a Soledad**, **% de ahorro** sobre el disponible, **tope manual** opcional en tarjeta, umbrales de alerta (60–100 %). Evolución del sueldo neto (gráfico + tabla histórica). |
+| **Dashboard** | KPIs (neto, Soledad, ahorro, límite, gasto manual, importado, saldo vs límite, suma de ingresos históricos), gauge, gasto por categoría/tarjeta, alertas, insights. |
+| **Tarjetas** (`/cards`) | Alta/edición/baja: banco, nombre, marca, últimos 4, días de cierre y vencimiento. |
+| **Gastos** (`/expenses`) | Movimientos **manuales** que cuentan para el límite del mes. |
+| **Informes** (`/reports`) | Comparativas mensuales, torta por categoría, gasto por tarjeta. |
+| **Resúmenes** (`/imports`) | Importación **CSV** con parser flexible; categorización heurística; alerta de **vencimiento de pago**; opcional evento en **Google Calendar**. |
+
+### Alertas y canales
+
+- **En la app**: siempre en el panel y en la lista de alertas.
+- **Telegram** (opcional): mismas alertas por bot; requiere `TELEGRAM_BOT_TOKEN` en el servidor y **chat id** en Configuración. **No** sustituye la app ni guarda datos fuera de tu base.
+- **Email** (opcional): vía [Resend](https://resend.com) (`RESEND_API_KEY`, `RESEND_FROM` verificado).
+- **WhatsApp**: no integrado (API Meta/Twilio); explicado en la UI.
+
+### Integraciones
+
+- **Google Calendar**: OAuth; al importar un resumen se puede crear un evento de **día completo** en la fecha de vencimiento estimada (según la tarjeta).
+
+### Datos y scripts
+
+- **Seed** (`npm run db:seed`): solo **categorías** base; sin datos de demostración.
+- **Limpieza** (`npm run db:wipe` o `db:wipe:production` con `vercel env pull`): borra datos de usuario y deja categorías; para empezar de cero antes de volver a `/setup`.
+- **Git** (`npm run sync:github`): si hay cambios, commit `chore: sync` y push a `main` (útil para disparar deploy en Vercel).
 
 ---
 
 ## Stack
 
 - **Next.js 14** (App Router) · **TypeScript** · **Tailwind CSS**
-- **Prisma** + **PostgreSQL** (Neon / Supabase / Vercel Postgres; gratis en tier hobby)
+- **Prisma 5** + **PostgreSQL** (Neon u otro; recomendado para local y producción)
 - **shadcn/ui** (Radix) · **React Hook Form** · **Zod** · **Recharts** · **date-fns**
 - **googleapis** (Calendar API, opcional)
 
 ---
 
-## Requisitos
+## Requisitos e instalación
 
 - **Node.js** 18+ (recomendado 20+)
 - **npm**
-
----
-
-## Instalación rápida
-
-1. **Base de datos PostgreSQL gratis:** creá un proyecto en [Neon](https://neon.tech) (o Supabase), copiá el **connection string** (`DATABASE_URL`, con `?sslmode=require` si aplica).
-
-2. En el proyecto:
 
 ```bash
 git clone <url-del-repo>
 cd antinosis
 npm install
 cp .env.example .env
-# Editá .env y pegá DATABASE_URL de Neon
+# Completá DATABASE_URL y el resto según necesites (ver tabla abajo)
 npx prisma db push
 npm run db:seed
 npm run dev
 ```
 
-Abrir [http://localhost:3000](http://localhost:3000) (redirige al panel).
-
-> Antes usábamos SQLite solo en local; **Vercel y otros hostings serverless no sirven para un archivo `.db`**. Por eso el repo usa PostgreSQL para desarrollo y producción.
+Abrí [http://localhost:3000](http://localhost:3000) → redirige a `/setup` si no hay usuario, o al panel.
 
 ### Acceso desde el celular (misma red WiFi)
 
-1. En la PC, **pará** el servidor si estaba con `npm run dev` y arrancalo así:
-   ```bash
-   npm run dev:lan
-   ```
-   Eso hace que Next escuche en **todas las interfaces** (`0.0.0.0`), no solo en `localhost`.
+```bash
+npm run dev:lan
+```
 
-2. Obtené la **IP local de la PC** en la misma WiFi que el celular:
-   - **Windows** (PowerShell o CMD): `ipconfig` → buscá **IPv4** del adaptador Wi‑Fi o Ethernet (ej. `192.168.0.42`).
-   - El celular y la PC deben estar en la **misma red** (no datos móviles del celular salvo que uses hotspot de la PC).
-
-3. En el navegador del celular abrí: **`http://TU_IP:3000`** (ej. `http://192.168.0.42:3000`).
-
-4. Si no carga, revisá el **firewall de Windows**: permití conexiones entrantes para **Node.js** o el puerto **3000** (TCP) en redes privadas.
-
-5. **Google Calendar desde el celular:** si usás OAuth, en `.env` poné `NEXT_PUBLIC_APP_URL=http://TU_IP:3000` y agregá esa misma URL + `/api/google-calendar/callback` en la consola de Google como redirect autorizado.
+En el celular: `http://IP_DE_TU_PC:3000`. Permití Node o el puerto 3000 en el firewall de Windows si hace falta. Para OAuth Google, `NEXT_PUBLIC_APP_URL` debe coincidir con esa URL y el redirect debe estar en Google Cloud Console.
 
 ---
 
 ## Variables de entorno
 
-Copiá `.env.example` a `.env` y completá:
+Copiá `.env.example` a `.env`. **No subas `.env`** al repositorio.
 
-| Variable | Uso |
-|----------|-----|
-| `DATABASE_URL` | **PostgreSQL** (ej. Neon). Formato: `postgresql://user:pass@host/db?sslmode=require` |
-| `NEXT_PUBLIC_APP_URL` | URL pública de la app: local `http://localhost:3000` o en Vercel `https://tu-proyecto.vercel.app` (necesaria para OAuth de Google). |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Opcional: integración con Google Calendar. |
-
-No commitees `.env` (está en `.gitignore`).
-
----
-
-## Deploy en Vercel (gratis, plan Hobby)
-
-1. Subí el código a **GitHub** (ya lo tenés).
-2. En [vercel.com](https://vercel.com) → **Add New** → **Project** → importá el repo.
-3. Dejá **Framework Preset: Next.js**; **Build Command** y **Output** por defecto suelen estar bien (`npm run build` ya ejecuta `prisma generate`, `db push` y `next build`).
-4. En **Environment Variables** agregá al menos:
-   - `DATABASE_URL` = connection string de **Neon** (misma base que uses para desarrollo o una branch “production”).
-   - `NEXT_PUBLIC_APP_URL` = la URL que te asigne Vercel al terminar el primer deploy (ej. `https://antinosis.vercel.app`), o tu dominio custom.
-   - Opcional: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` si usás Calendar; en Google Cloud agregá como redirect autorizado:  
-     `https://TU-DOMINIO.vercel.app/api/google-calendar/callback`
-5. **Deploy.** El primer build aplica el schema (`prisma db push`) a la base.
-6. **Datos iniciales:** desde tu PC (con el mismo `DATABASE_URL` en `.env`):
-
-   ```bash
-   npx prisma db seed
-   ```
-
-   O usá la app vacía y cargá presupuesto / tarjetas a mano.
-
-Si el build falla, revisá en los logs que `DATABASE_URL` esté bien y que la base acepte conexiones SSL.
-
----
-
-## Google Calendar (opcional)
-
-1. [Google Cloud Console](https://console.cloud.google.com/) → habilitar **Google Calendar API**.
-2. Crear credenciales **OAuth cliente Web**.
-3. URI de redirección autorizada:  
-   `{NEXT_PUBLIC_APP_URL}/api/google-calendar/callback`  
-   Ejemplo local: `http://localhost:3000/api/google-calendar/callback`
-4. En **Resúmenes** (`/imports`), **Conectar con Google** y luego importar un CSV.
-
----
-
-## Cómo se usa (flujo típico)
-
-1. **Presupuesto** (`/budget`): definí ingreso, % o límite manual y umbrales de alerta.
-2. **Tarjetas** (`/cards`): alta de tarjetas (cierre / vencimiento / últimos 4 dígitos).
-3. **Gastos** (`/expenses`): cargá gastos **manuales** del mes; eso es lo que **descuenta del límite**.
-4. **Panel** (`/dashboard`): KPIs, gauge, categorías, comparativas y alertas.
-5. **Resúmenes** (`/imports`): subí un **CSV** con columnas tipo `fecha` / `monto` / `descripción`; se categoriza automáticamente, genera alerta de vencimiento y, si está conectado Google, un evento en el calendario. **No afecta el límite mensual.**
-6. **Informes** (`/reports`): histórico con columnas **en curso** vs **importado**.
-
-### Formato CSV de ejemplo (cabeceras reconocidas)
-
-- Fecha: `date`, `fecha`, …
-- Monto: `amount`, `monto`, `importe`, …
-- Texto: `description`, `descripcion`, `merchant`, `comercio`, …
-
-Separador: **coma** o **punto y coma**.
+| Variable | Obligatorio | Descripción |
+|----------|-------------|-------------|
+| `DATABASE_URL` | Sí | PostgreSQL, ej. Neon: `postgresql://...?sslmode=require` |
+| `NEXT_PUBLIC_APP_URL` | Recomendado | URL pública: `http://localhost:3000` o `https://tu-app.vercel.app` (OAuth y enlaces). |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google Calendar OAuth. Redirect: `{NEXT_PUBLIC_APP_URL}/api/google-calendar/callback` |
+| `TELEGRAM_BOT_TOKEN` | No | Bot creado con @BotFather; para alertas por Telegram. |
+| `RESEND_API_KEY` / `RESEND_FROM` | No | Envío de emails (dominio verificado en Resend). |
 
 ---
 
@@ -146,55 +111,110 @@ Separador: **coma** o **punto y coma**.
 
 | Comando | Descripción |
 |---------|-------------|
-| `npm run dev` | Servidor de desarrollo (solo esta PC) |
-| `npm run dev:lan` | Desarrollo escuchando en la red local (celular vía WiFi) |
-| `npm run build` | `prisma generate` + `db push` + `next build` (necesita `DATABASE_URL` válido) |
-| `npm run start` | Servidor producción (tras `build`) |
+| `npm run dev` | Desarrollo en `localhost` |
+| `npm run dev:lan` | Desarrollo en `0.0.0.0:3000` (red local) |
+| `npm run build` | `prisma generate` + `next build` (**sin** `db push`; Vercel no modifica el esquema en el build) |
+| `npm run start` | Producción (tras `build`) |
 | `npm run lint` | ESLint |
-| `npm run db:push` | Aplicar schema Prisma a la base |
-| `npm run db:seed` | Datos de demostración |
+| `npm run db:push` | Aplicar `schema.prisma` a la base (desarrollo o contra Neon cuando cambie el modelo) |
+| `npm run db:seed` | Categorías base |
+| `npm run db:seed:production` | Carga `.env.production.local` (p. ej. tras `vercel env pull`) y ejecuta seed |
+| `npm run db:wipe` | Borra datos de usuario; deja categorías |
+| `npm run db:wipe:production` | Igual contra URL de producción |
 | `npm run db:studio` | Prisma Studio |
+| `npm run sync:github` | `git add`, commit y push a `main` si hay cambios |
 
-Tras `npm install` se ejecuta `prisma generate` (postinstall).
+Tras `npm install` corre `postinstall` → `prisma generate`.
+
+---
+
+## Deploy (Vercel)
+
+1. Repo en **GitHub** conectado a Vercel.
+2. **Build**: por defecto `npm run build` (ya incluye `prisma generate`).
+3. **Variables** en el proyecto Vercel: como mínimo `DATABASE_URL` y `NEXT_PUBLIC_APP_URL` (URL real del deploy). Opcional: Google, Telegram, Resend.
+4. **Esquema de base**: tras cambiar `schema.prisma`, ejecutá **`npx prisma db push`** localmente apuntando a la misma base que usa producción (no en el build de Vercel).
+5. **Seed / primer usuario**: categorías con `db:seed` si hace falta; usuario inicial desde **`/setup`** en el navegador. Para poblar producción sin abrir la app en local: `db:seed:production` con env descargado.
+
+Cada **push a `main`** suele disparar un deploy automático (`npm run sync:github` o push manual).
+
+---
+
+## Integraciones opcionales
+
+### Google Calendar
+
+1. Google Cloud Console → habilitar **Calendar API** → credenciales **OAuth cliente Web**.  
+2. Redirect URI: `{NEXT_PUBLIC_APP_URL}/api/google-calendar/callback`.  
+3. En **Resúmenes**, conectar cuenta; al importar CSV se intenta crear un evento el día del vencimiento.
+
+### Telegram (alertas)
+
+1. @BotFather → `/newbot` → token en `TELEGRAM_BOT_TOKEN`.  
+2. Configuración → canal **Telegram** + **chat id** (obtenible vía `getUpdates` o bot de info).  
+3. Las alertas de umbral y vencimiento se replican al chat cuando el canal no es “solo app”.
+
+### Email (Resend)
+
+1. Cuenta Resend, dominio verificado.  
+2. `RESEND_API_KEY`, `RESEND_FROM`.  
+3. Configuración → canal **Email** + dirección.
+
+---
+
+## Flujo de uso
+
+1. **`/setup`**: nombre del perfil.  
+2. **`/settings`**: cargá sueldo neto, Soledad, % ahorro y umbrales para el mes.  
+3. **`/cards`**: tarjetas con cierre y vencimiento.  
+4. **`/expenses`**: gastos manuales del mes.  
+5. **`/dashboard`**: visión general y KPIs.  
+6. **`/imports`**: CSV de movimientos; opcional Calendar conectado.  
+7. **`/reports`**: histórico y comparativas.
+
+### CSV (cabeceras reconocidas)
+
+- Fecha: `date`, `fecha`, …  
+- Monto: `amount`, `monto`, `importe`, …  
+- Texto: `description`, `merchant`, `comercio`, …  
+
+Separador: coma o punto y coma.
+
+---
+
+## Reglas de negocio
+
+- **Límite en tarjeta** = f(sueldo neto − Soledad) menos el % de ahorro sobre ese disponible, salvo **tope manual** (ver `lib/calculations.ts`).
+- Solo gastos **manuales** cuentan para el límite y umbrales (`lib/expense-scope.ts`).
+- Movimientos **importados desde CSV** no restan del tope mensual (sirven para registro, informes y calendario).
 
 ---
 
 ## Estructura del repo
 
 ```
-app/           # Rutas, layouts, API (Google OAuth), server actions
-components/    # UI, formularios, gráficos, layout
-db/prisma/     # schema.prisma, seed, SQLite local
-lib/           # Prisma client, cálculos, parsers CSV, Google Calendar, alcance de gastos
-services/      # Lógica: presupuesto, gastos, alertas, importación
-types/         # Tipos TypeScript compartidos
+app/                 # Rutas Next (dashboard, settings, setup, imports, API OAuth…)
+components/          # UI, formularios, gráficos, layout
+db/prisma/           # schema.prisma, seed, wipe-all-data.ts
+lib/                 # Prisma client, cálculos, parsers, Google Calendar, notificaciones
+services/            # Presupuesto, gastos, alertas, importación
+BACKLOG.md           # Backlog detallado MVP (pendientes y deuda)
 ```
 
 ---
 
-## Usuario y datos de prueba
+## Backlog y pendientes
 
-El MVP usa **un usuario demo** (el primero en la tabla `User`). El seed crea tarjetas, categorías, meses de ejemplo y gastos.
+El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 
----
+| Prioridad | Temas principales |
+|-----------|-------------------|
+| **P0** | Proteger acceso (auth o contraseña en env), variables bien configuradas en Vercel, onboarding guiado tras setup, idioma/moneda unificados (ej. ARS). |
+| **P1** | Mejoras CSV (plantilla, validación, bancos), categorías editables en UI, PWA, migraciones Prisma formales. |
+| **QA** | Validar import + evento en Google Calendar en tu entorno. |
+| **P2** | Tests, observabilidad, multi-usuario real, export CSV/Excel. |
 
-## Reglas de negocio importantes
-
-- **Límite mensual** = solo gastos con origen **manual** (“en curso”).
-- **Importados desde resumen** = registro + informes + calendario; **no** suman al % del presupuesto ni disparan alertas por umbral de monto.
-- Tipos de origen definidos en código (`lib/expense-scope.ts`); en el futuro se puede incluir p. ej. comprobantes reenviados.
-
----
-
-## Despliegue (otros proveedores)
-
-- Misma idea: `DATABASE_URL` apuntando a PostgreSQL, `NEXT_PUBLIC_APP_URL` público, variables de Google si aplica.
-
----
-
-## Mantener el README al día
-
-Cada vez que se agregue una funcionalidad relevante (nueva pantalla, variable de entorno, comando, integración), conviene **actualizar este README** en el mismo cambio y **commitear** junto con el código para que el repositorio siga siendo la fuente de verdad.
+**Deuda conocida:** sin login multi-usuario, i18n mixta, moneda fija en UI, sin import PDF, WhatsApp no integrado.
 
 ---
 

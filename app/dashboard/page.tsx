@@ -32,11 +32,8 @@ export default async function DashboardPage() {
   }
 
   const { month, year } = currentMonthYear();
-  const { budget, spent, spentImportedTotal, remaining, percentConsumed, config } = await getMonthFinancials(
-    userId,
-    month,
-    year,
-  );
+  const { budget, spent, spentImportedTotal, remaining, percentConsumed, config, cardPaymentsDueInMonth } =
+    await getMonthFinancials(userId, month, year);
   await syncAlertsForMonth(userId, month, year, percentConsumed, config.id);
 
   const [categoryTotals, monthRows, cardSpend, alerts, recentExpenses, totalNetRegistered, monthsWithIncome] =
@@ -56,20 +53,22 @@ export default async function DashboardPage() {
     manualCardLimit: config.manualCardLimit,
     soledadCashTransfer: config.soledadCashTransfer,
     savingsPercentage: config.savingsPercentage,
+    cardPaymentsDueInMonth,
   });
 
   const topCategory = categoryTotals[0]?.categoryName;
   const insights: string[] = [
-    `Sobre el gasto en curso (manual), usaste ${percentConsumed.toFixed(0)}% del límite mensual.`,
+    `El límite mensual considera sueldo neto, menos Soledad, menos ${formatCurrency(breakdown.cardPaymentsDue)} en pagos de tarjeta con vencimiento este mes (según resúmenes importados), y el % de ahorro sobre lo que queda.`,
+    `Sobre el gasto en curso (manual), usaste ${percentConsumed.toFixed(0)}% de ese límite.`,
     topCategory
       ? `La categoría con más gasto en curso es ${topCategory}.`
       : "Cargá gastos manuales para ver categorías que cuentan para el límite.",
     remaining >= 0
-      ? `Te quedan ${formatCurrency(remaining)} disponibles respecto al límite.`
+      ? `Te quedan ${formatCurrency(remaining)} bajo el tope para gasto en curso.`
       : `Vas ${formatCurrency(Math.abs(remaining))} por encima del límite (solo en curso).`,
     spentImportedTotal > 0
-      ? `Además tenés ${formatCurrency(spentImportedTotal)} registrados desde resúmenes importados (no afectan el límite).`
-      : "El límite aplica solo a lo que cargás manualmente como gasto en curso; los resúmenes importados sirven para registro y calendario.",
+      ? `Movimientos desde resúmenes en el mes contable: ${formatCurrency(spentImportedTotal)} (el total a pagar por vencimiento se usa arriba cuando importaste el resumen).`
+      : "Importá resúmenes para que calculemos los pagos con vencimiento en este mes.",
   ];
 
   return (
@@ -127,11 +126,29 @@ export default async function DashboardPage() {
           </Card>
           <Card className="border-muted">
             <CardHeader className="pb-2">
-              <CardDescription className="text-xs font-medium uppercase tracking-wide">Disponible (post-Soledad)</CardDescription>
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Tras Soledad</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.baseAfterSoledad)}</p>
-              <p className="text-xs text-muted-foreground">Base antes del ahorro</p>
+              <p className="text-xs text-muted-foreground">Neto − transferencia</p>
+            </CardContent>
+          </Card>
+          <Card className="border-muted">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Pagos tarjeta (vencen este mes)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.cardPaymentsDue)}</p>
+              <p className="text-xs text-muted-foreground">Total resúmenes importados</p>
+            </CardContent>
+          </Card>
+          <Card className="border-muted">
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs font-medium uppercase tracking-wide">Base para ahorro</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">{formatCurrency(breakdown.baseForSavings)}</p>
+              <p className="text-xs text-muted-foreground">Después de pagos con vencimiento</p>
             </CardContent>
           </Card>
           <Card className="border-muted">
@@ -141,7 +158,7 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-semibold tabular-nums">{breakdown.savingsPct.toFixed(1)}%</p>
-              <p className="text-xs text-muted-foreground">Sobre el disponible</p>
+              <p className="text-xs text-muted-foreground">Sobre la base anterior</p>
             </CardContent>
           </Card>
           <Card className="border-muted">

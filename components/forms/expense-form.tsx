@@ -18,6 +18,7 @@ import { createExpenseAction, updateExpenseAction } from "@/app/actions";
 import { currentMonthYear } from "@/lib/helpers";
 import { useTransition } from "react";
 import type { CreditCard, Category, Expense } from "@prisma/client";
+import { ExpenseImageImport } from "@/components/forms/expense-image-import";
 
 const schema = z.object({
   transactionDate: z.string().min(1),
@@ -94,7 +95,11 @@ export function ExpenseForm({
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 sm:grid-cols-2">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {!expense && (
+        <ExpenseImageImport form={form} disabled={cards.length === 0} />
+      )}
+      <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-2">
         <Label>Date</Label>
         <Input type="date" {...form.register("transactionDate")} />
@@ -159,6 +164,7 @@ export function ExpenseForm({
         <Button type="submit" disabled={pending || cards.length === 0}>
           {pending ? "Saving…" : expense ? "Update expense" : "Add expense"}
         </Button>
+      </div>
       </div>
     </form>
   );

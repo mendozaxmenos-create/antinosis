@@ -6,13 +6,19 @@ export type BudgetComputationInput = {
   manualCardLimit: number | null | undefined;
   soledadCashTransfer?: number | null | undefined;
   savingsPercentage?: number | null | undefined;
+  /** Total a pagar por resúmenes con vencimiento en el mes calendario (importados). */
+  cardPaymentsDueInMonth?: number | null | undefined;
 };
 
-/** Desglose: neto → −Soledad → −% ahorro sobre el disponible → límite tarjeta (salvo tope manual). */
+/**
+ * Desglose: neto → −Soledad → −pagos tarjeta (vencen este mes) → % ahorro sobre esa base → límite en curso (salvo tope manual).
+ */
 export function explainBudgetComputation(input: BudgetComputationInput) {
   const net = Math.max(0, input.monthlyIncome ?? 0);
   const soledad = Math.max(0, input.soledadCashTransfer ?? 0);
-  const base = Math.max(0, net - soledad);
+  const cardPay = Math.max(0, input.cardPaymentsDueInMonth ?? 0);
+  const afterSoledad = Math.max(0, net - soledad);
+  const baseForSavings = Math.max(0, net - soledad - cardPay);
   const savingsPctRaw =
     input.savingsPercentage != null && input.savingsPercentage !== undefined
       ? input.savingsPercentage
@@ -20,15 +26,19 @@ export function explainBudgetComputation(input: BudgetComputationInput) {
         ? 100 - input.allowedPercentage
         : 0;
   const savingsPct = Math.min(100, Math.max(0, savingsPctRaw));
-  const savingsAmount = base * (savingsPct / 100);
-  const limitFromRule = base - savingsAmount;
+  const savingsAmount = baseForSavings * (savingsPct / 100);
+  const limitFromRule = Math.max(0, baseForSavings - savingsAmount);
   const manual = input.manualCardLimit;
   const finalLimit =
     manual != null && manual > 0 ? manual : Math.max(0, limitFromRule);
   return {
     netSalary: net,
     soledadCash: soledad,
-    baseAfterSoledad: base,
+    cardPaymentsDue: cardPay,
+    /** net − Soledad (antes de restar vencimientos de tarjeta) */
+    baseAfterSoledad: afterSoledad,
+    /** net − Soledad − pagos con vencimiento este mes; aquí aplica el % de ahorro */
+    baseForSavings,
     savingsPct,
     savingsAmount,
     limitFromRule,

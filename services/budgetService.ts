@@ -6,6 +6,7 @@ import {
   calculateTotalSpent,
 } from "@/lib/calculations";
 import { filterExpensesForBudgetLimit, isExpenseAgainstBudget } from "@/lib/expense-scope";
+import { sumStatementPaymentsDueInMonth } from "@/services/statementPaymentService";
 
 export async function getOrCreateBudgetConfig(userId: string, month: number, year: number) {
   const existing = await prisma.monthlyBudgetConfig.findUnique({
@@ -23,12 +24,14 @@ export async function getOrCreateBudgetConfig(userId: string, month: number, yea
   const allowedPercentage = null;
   const soledadCashTransfer = 0;
   const savingsPercentage = null;
+  const cardPaymentsDueInMonth = await sumStatementPaymentsDueInMonth(userId, month, year);
   const computedCardLimit = calculateMonthlyLimit({
     monthlyIncome,
     allowedPercentage,
     manualCardLimit: null,
     soledadCashTransfer,
     savingsPercentage,
+    cardPaymentsDueInMonth,
   });
 
   return prisma.monthlyBudgetConfig.create({
@@ -61,12 +64,14 @@ export async function upsertBudgetConfig(
     thresholds?: { percentage: number; enabled: boolean }[];
   },
 ) {
+  const cardPaymentsDueInMonth = await sumStatementPaymentsDueInMonth(userId, month, year);
   const computedCardLimit = calculateMonthlyLimit({
     monthlyIncome: data.monthlyIncome,
     allowedPercentage: data.allowedPercentage,
     manualCardLimit: data.manualCardLimit,
     soledadCashTransfer: data.soledadCashTransfer,
     savingsPercentage: data.savingsPercentage,
+    cardPaymentsDueInMonth,
   });
 
   const existing = await prisma.monthlyBudgetConfig.findUnique({
@@ -162,6 +167,7 @@ export async function countMonthsWithNetIncome(userId: string) {
 
 export async function getMonthFinancials(userId: string, month: number, year: number) {
   const config = await getOrCreateBudgetConfig(userId, month, year);
+  const cardPaymentsDueInMonth = await sumStatementPaymentsDueInMonth(userId, month, year);
   const expensesAll = await prisma.expense.findMany({
     where: {
       postedMonth: month,
@@ -179,6 +185,7 @@ export async function getMonthFinancials(userId: string, month: number, year: nu
     manualCardLimit: config.manualCardLimit,
     soledadCashTransfer: config.soledadCashTransfer,
     savingsPercentage: config.savingsPercentage,
+    cardPaymentsDueInMonth,
   });
   const spent = calculateTotalSpent(expensesEnCurso);
   const spentTotalAll = calculateTotalSpent(expensesAll);
@@ -186,6 +193,7 @@ export async function getMonthFinancials(userId: string, month: number, year: nu
   const percentConsumed = calculatePercentage(spent, budget);
   return {
     config,
+    cardPaymentsDueInMonth,
     expenses: expensesEnCurso,
     expensesAll,
     budget,
