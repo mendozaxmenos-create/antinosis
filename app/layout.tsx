@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
+import { AuthProvider } from "@/components/providers/auth-provider";
 import { getHtmlLang } from "@/lib/locale-config";
 import "./globals.css";
 
@@ -20,7 +21,9 @@ export default function RootLayout({
   return (
     <html lang={getHtmlLang()}>
       <body className={`${inter.variable} min-h-screen font-sans`}>
-        <AppShell>{children}</AppShell>
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+        </AuthProvider>
       </body>
     </html>
   );

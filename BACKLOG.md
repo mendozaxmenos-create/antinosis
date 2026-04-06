@@ -120,10 +120,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 8. **Google Calendar al subir un resumen** — Que cada importación de resumen (CSV/PDF) **registre el vencimiento de pago** en el Google Calendar del usuario cuando tenga cuenta OAuth vinculada. Incluye: comportamiento claro si no hay token, si la API falla, evitar duplicados al reimportar, texto/título del evento (tarjeta, importe a pagar si aplica) y validación en todos los parsers.
 9. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
 10. **Categorías** — CRUD en UI (hoy vienen del seed).
-11. **Gráficos de evolución (ingresos vs tarjeta / bonos / resúmenes)** — Agregar gráficos para analizar tendencias:
-   - **Bonos**: gráfico con los últimos bonos cargados (y/o bonos por mes).
-   - **Resúmenes**: gráfico de resúmenes subidos por mes (cantidad y total ARS).
-   - **Comparación**: evolución mensual de ingresos (neto o neto+bonos) vs gastos con tarjeta (importados).
+11. **Gráficos de evolución (ingresos vs tarjeta / bonos / resúmenes)** — **Hecho (Configuración):** gráficos de tendencias — **últimos bonos** (barras por registro), **resúmenes subidos por mes** (suma ARS importada + cantidad en tooltip; mes de subida), **ingreso mensual (neto + bonos) vs gasto importado** por mes de operación (líneas).
 12. **Importación con revisión y aprendizaje de categorías** — Antes de “confirmar” un resumen:
    - Preview (parse + USD→ARS) con sugerencia de categoría.
    - UI para revisar consumos y **obligar** categoría en cada línea antes de aprobar.
@@ -152,7 +149,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Listo | Pendiente destacado |
 |-------|----------------------|
-| Ingresos/límites con **vencimientos de tarjeta en el mes**, **bonos de sueldo + evolución neto/bonos en Configuración**, **puerta opcional `APP_PASSWORD`** (`/login`, cookie), **onboarding** en CuantoQueda y Cards (alertas / vacíos), **locale/moneda** (`es-AR` / `ARS` por defecto), KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth por usuario** + **admin** (contraseña, rol), **dashboard de operaciones** (usuarios activos, trial, canon/MRR) y **acceso admin desde la app**; **Calendar al importar resumen**; **import con aprobación** (categorías obligatorias + aprendizaje); **gráficos** (bonos, resúmenes, ingresos vs tarjeta); cuotas proyectadas; PWA/pull-to-refresh; tests; migraciones |
+| Ingresos/límites con **vencimientos de tarjeta en el mes**, **bonos de sueldo + evolución neto/bonos en Configuración**, **gráficos** (últimos bonos, resúmenes subidos por mes, ingresos vs importado tarjeta), **puerta opcional `APP_PASSWORD`** (`/login`, cookie), **onboarding** en CuantoQueda y Cards (alertas / vacíos), **locale/moneda** (`es-AR` / `ARS` por defecto), KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth por usuario** + **admin** (contraseña, rol), **dashboard de operaciones** (usuarios activos, trial, canon/MRR) y **acceso admin desde la app**; **Calendar al importar resumen**; **import con aprobación** (categorías obligatorias + aprendizaje); cuotas proyectadas; PWA/pull-to-refresh; tests; migraciones |
 
 ---
 

@@ -3,6 +3,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SettingsBudgetForm } from "@/components/forms/settings-budget-form";
 import { SalaryBonusForm } from "@/components/forms/salary-bonus-form";
 import { IncomeEvolutionChart } from "@/components/charts/income-evolution-chart";
+import { RecentBonusesChart } from "@/components/charts/recent-bonuses-chart";
+import { StatementUploadsChart } from "@/components/charts/statement-uploads-chart";
+import { IncomeVsImportedChart } from "@/components/charts/income-vs-imported-chart";
 import { parseMonthYearFromSearchParams } from "@/lib/parse-month-year-params";
 import { formatCurrency } from "@/lib/helpers";
 import { getDefaultUserId } from "@/lib/user";
@@ -13,6 +16,11 @@ import {
   listSalaryBonuses,
   sumSalaryBonuses,
 } from "@/services/salaryBonusService";
+import {
+  getIncomeVsImportedCardSeries,
+  getRecentBonusesChartData,
+  getStatementUploadsByMonth,
+} from "@/services/analyticsChartsService";
 import { mapStatementPaymentsDueByCalendarMonth } from "@/services/statementPaymentService";
 import { AlertChannelForm } from "@/components/forms/alert-channel-form";
 import { CategoriesManager } from "@/components/forms/categories-manager";
@@ -45,6 +53,9 @@ export default async function SettingsPage({
     evolutionSeries,
     salaryBonuses,
     totalBonusSum,
+    recentBonusesChart,
+    statementUploadsByMonth,
+    incomeVsImportedSeries,
   ] = await Promise.all([
     getOrCreateBudgetConfig(userId, month, year),
     listBudgetHistory(userId, 200),
@@ -61,6 +72,9 @@ export default async function SettingsPage({
     getIncomeEvolutionSeries(userId),
     listSalaryBonuses(userId),
     sumSalaryBonuses(userId),
+    getRecentBonusesChartData(userId, 14),
+    getStatementUploadsByMonth(userId, 24),
+    getIncomeVsImportedCardSeries(userId),
   ]);
 
   const cardPaymentsDueForSelectedMonth = paymentsByDueMonth.get(`${year}-${month}`) ?? 0;
@@ -255,6 +269,45 @@ export default async function SettingsPage({
             data={evolutionSeries}
             totalLabel={`Suma sueldos netos: ${formatCurrency(totalNet)} (${monthsWithNetIncome} meses con neto) · Bonos acumulados: ${formatCurrency(totalBonusSum)} (${bonusRegLabel})`}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Últimos bonos registrados</CardTitle>
+          <CardDescription>
+            Hasta 14 cargas recientes (una barra por registro). Pasá el mouse para ver la nota si la cargaste.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RecentBonusesChart data={recentBonusesChart} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Resúmenes subidos por mes</CardTitle>
+          <CardDescription>
+            Agrupa por <strong>mes en que subiste el archivo</strong> (últimos 24 meses). La altura es la suma en ARS
+            de los movimientos importados de esos archivos; el tooltip muestra cuántos resúmenes fueron.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <StatementUploadsChart data={statementUploadsByMonth} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ingresos vs gasto con tarjeta (importado)</CardTitle>
+          <CardDescription>
+            Línea <strong>ingreso del mes</strong> = sueldo neto guardado + bonos de ese mes. Línea <strong>importado</strong>{" "}
+            = suma de movimientos desde resúmenes según <strong>fecha de operación</strong> en ese mes calendario (no es
+            el vencimiento del resumen).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <IncomeVsImportedChart data={incomeVsImportedSeries} />
         </CardContent>
       </Card>
 
