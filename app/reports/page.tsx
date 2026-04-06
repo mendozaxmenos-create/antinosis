@@ -11,8 +11,10 @@ import { formatCurrency } from "@/lib/helpers";
 import { currentMonthYear } from "@/lib/helpers";
 import { format } from "date-fns";
 import { redirect } from "next/navigation";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export default async function ReportsPage() {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) {
     redirect("/setup");

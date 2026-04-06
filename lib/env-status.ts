@@ -25,11 +25,25 @@ export function getEnvChecks(): EnvCheck[] {
       notes: "Se usa en links y en OAuth (Google Calendar).",
     },
     {
+      key: "AUTH_SECRET",
+      label: "Auth admin (secret)",
+      requiredInProduction: false,
+      configured: has("AUTH_SECRET"),
+      notes: "Habilita login OAuth admin (NextAuth/Auth.js).",
+    },
+    {
+      key: "ADMIN_EMAILS",
+      label: "Auth admin (allowlist emails)",
+      requiredInProduction: false,
+      configured: has("ADMIN_EMAILS"),
+      notes: "Emails separados por coma que pueden entrar como admin.",
+    },
+    {
       key: "APP_PASSWORD",
       label: "Puerta de acceso (opcional)",
       requiredInProduction: false,
       configured: has("APP_PASSWORD"),
-      notes: "Si está definida, la app exige login en /login (cookie).",
+      notes: "Modo legacy. Si Auth admin está configurado, se ignora.",
     },
     {
       key: "NEXT_PUBLIC_LOCALE",
@@ -47,15 +61,27 @@ export function getEnvChecks(): EnvCheck[] {
     },
     {
       key: "GOOGLE_CLIENT_ID",
-      label: "Google Calendar OAuth (client id)",
+      label: "Google OAuth (Calendar + login)",
       requiredInProduction: false,
       configured: has("GOOGLE_CLIENT_ID"),
     },
     {
       key: "GOOGLE_CLIENT_SECRET",
-      label: "Google Calendar OAuth (client secret)",
+      label: "Google OAuth (Calendar + login)",
       requiredInProduction: false,
       configured: has("GOOGLE_CLIENT_SECRET"),
+    },
+    {
+      key: "MICROSOFT_CLIENT_ID",
+      label: "Microsoft OAuth (login)",
+      requiredInProduction: false,
+      configured: has("MICROSOFT_CLIENT_ID"),
+    },
+    {
+      key: "MICROSOFT_CLIENT_SECRET",
+      label: "Microsoft OAuth (login)",
+      requiredInProduction: false,
+      configured: has("MICROSOFT_CLIENT_SECRET"),
     },
     {
       key: "TELEGRAM_BOT_TOKEN",

@@ -104,7 +104,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 ### P0 — Seguridad y pulido esencial
 
 1. **Variables en Vercel** — **Hecho:** checklist en `/settings` que indica si están configuradas (sin mostrar valores). Verificar en deploy: `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, OAuth Google si aplica; si usás alertas: `TELEGRAM_BOT_TOKEN` y/o Resend; si usás **puerta de acceso**, definir también **`APP_PASSWORD`**; opcional **`NEXT_PUBLIC_LOCALE`** / **`NEXT_PUBLIC_CURRENCY`**.
-2. **Contraseña y rol admin (cuenta propietario)** — Permitir **setear contraseña** (y sesión) para al menos un usuario **administrador** (el dueño del producto o cuenta principal), distinto o complementario a un `APP_PASSWORD` global. Base para auditar quién entra como admin vs usuario final.
+2. **Contraseña y rol admin (cuenta propietario)** — **Hecho (OAuth admin):** login con Google/Microsoft (NextAuth/Auth.js) + allowlist `ADMIN_EMAILS`. Cuando está configurado, **reemplaza** el gate `APP_PASSWORD` (pasa a modo legacy).
 3. **Dashboard de operaciones (métricas de la app)** — Para el **lanzamiento al público general**: vista protegida solo para admin con **métricas de negocio** — p. ej. **cantidad de usuarios activos**, usuarios en **modo prueba** / trial, **canon o ingreso mensual** recurrente (MRR), y otras KPIs que definas (registros, churn, uso). Depende de modelo de datos multi-usuario / suscripción y de instrumentación.
 4. **Acceso al panel admin desde la app cliente** — En el **dashboard del cliente** (p. ej. CuantoQueda / layout principal), un acceso explícito para quien sea admin: **“Ver panel de administración”** o **modo admin**, que lleve al dashboard de métricas (ítem 3) sin confundirlo con el flujo normal de gastos y presupuesto.
 

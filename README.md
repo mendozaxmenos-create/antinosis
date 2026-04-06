@@ -122,6 +122,9 @@ Copiá `.env.example` a `.env`. **No subas `.env`** al repositorio.
 | `TELEGRAM_BOT_TOKEN` | No | Bot creado con @BotFather; para alertas por Telegram. |
 | `RESEND_API_KEY` / `RESEND_FROM` | No | Envío de emails (dominio verificado en Resend). |
 | `APP_PASSWORD` | No | Si la definís, la app pide contraseña en `/login` (cookie segura; compatible con Google Calendar). Sin variable, el comportamiento es el de siempre (acceso abierto a quien tenga la URL). |
+| `AUTH_SECRET` | No | Habilita login OAuth admin (NextAuth/Auth.js). Recomendado en producción. |
+| `ADMIN_EMAILS` | No | Allowlist de emails (separados por coma) que pueden entrar como admin con OAuth. |
+| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | No | Login con Microsoft Entra ID (Outlook). |
 
 ---
 
@@ -151,6 +154,7 @@ Tras `npm install` corre `postinstall` → `prisma generate`.
 1. Repo en **GitHub** conectado a Vercel.
 2. **Build**: `npm run build` ejecuta `scripts/vercel-build.js`. En **Vercel** aplica automáticamente **`prisma db push`** contra la base configurada (necesitás **`DATABASE_URL`** en variables de entorno del proyecto). En tu PC, `npm run build` **no** hace `db push`; para alinear la base local usá `npm run db:push`.
 3. **Variables** en el proyecto Vercel: como mínimo **`DATABASE_URL`** (obligatoria para que el build aplique el esquema) y `NEXT_PUBLIC_APP_URL` (URL real del deploy). Opcional: Google, Telegram, Resend. Si usás **puerta de acceso**, agregá **`APP_PASSWORD`** (misma idea que en `.env` local).
+   - Si habilitás **login admin con OAuth**: agregá `AUTH_SECRET`, `ADMIN_EMAILS` y el/los provider(s) (`GOOGLE_CLIENT_ID/SECRET` y/o `MICROSOFT_CLIENT_ID/SECRET`).
 4. **Previews / ramas**: si un deploy de preview usa la **misma** `DATABASE_URL` que producción, cada build también ejecutará `db push` (el esquema queda al día; conviene que sea consciente o usar otra base para previews).
 5. **Seed / primer usuario**: categorías con `db:seed` si hace falta; usuario inicial desde **`/setup`** en el navegador. Para poblar producción sin abrir la app en local: `db:seed:production` con env descargado.
 6. **PDF en serverless**: la lectura de PDF (`pdf-parse`) se carga **solo al importar un archivo**, no al abrir `/imports`. Worker de pdfjs: `PDFParse.setWorker` + ruta `file://` (`lib/pdf-worker-path.ts`) y `serverComponentsExternalPackages` en `next.config.mjs` — detalle en **[BACKLOG.md — Nota: PDF en serverless](./BACKLOG.md#nota-pdf-en-serverless-vercel)**.

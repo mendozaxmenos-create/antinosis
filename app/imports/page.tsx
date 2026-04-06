@@ -10,6 +10,7 @@ import { GoogleCalendarConnect } from "@/components/integrations/google-calendar
 import { StatementImportRowActions } from "@/components/imports/statement-import-row-actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { redirect } from "next/navigation";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 /** Vercel/Next: tiempo máximo para Server Action de import (PDF + BCRA + Prisma). */
 export const maxDuration = 60;
@@ -19,6 +20,7 @@ export default async function ImportsPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) {
     redirect("/setup");

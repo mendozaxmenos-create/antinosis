@@ -14,6 +14,7 @@ import { importManualStatement, importStatementRows } from "@/services/statement
 import { computePaymentDueDate } from "@/lib/payment-due-date";
 import { deleteCalendarEvent, updatePaymentDueCalendarEvent } from "@/lib/google-calendar";
 import { STATEMENT_IMPORT_EXPENSE_SOURCE_TYPES } from "@/lib/statement-import-expense-sources";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 /** Import dinámico: evita cargar pdfjs-dist al evaluar este módulo (GET /imports). Polyfills antes de pdf-parse (DOMMatrix en Node). */
 async function statementFileToText(file: File): Promise<string> {
@@ -75,6 +76,7 @@ const expenseBase = z.object({
 });
 
 export async function createExpenseAction(input: z.infer<typeof expenseBase>) {
+  await requireAdminSession();
   const data = expenseBase.parse(input);
   const card = await prisma.creditCard.findFirst({
     where: { id: data.cardId, userId: data.userId },
@@ -108,6 +110,7 @@ export async function createExpenseAction(input: z.infer<typeof expenseBase>) {
 const expenseUpdate = expenseBase.extend({ id: z.string().min(1) });
 
 export async function updateExpenseAction(input: z.infer<typeof expenseUpdate>) {
+  await requireAdminSession();
   const data = expenseUpdate.parse(input);
   const existing = await prisma.expense.findFirst({
     where: { id: data.id, card: { userId: data.userId } },
@@ -143,6 +146,7 @@ export async function updateExpenseAction(input: z.infer<typeof expenseUpdate>) 
 }
 
 export async function deleteExpenseAction(input: { id: string; userId: string }) {
+  await requireAdminSession();
   const schema = z.object({
     id: z.string(),
     userId: z.string(),
@@ -177,6 +181,7 @@ const budgetSchema = z.object({
 });
 
 export async function saveBudgetAction(input: z.infer<typeof budgetSchema>) {
+  await requireAdminSession();
   const data = budgetSchema.parse(input);
   await upsertBudgetConfig(data.userId, data.month, data.year, {
     monthlyIncome: data.monthlyIncome,
@@ -305,6 +310,7 @@ export type ImportStatementResult =
   | { ok: false; error: string };
 
 export async function importStatementCsvAction(formData: FormData): Promise<ImportStatementResult> {
+  await requireAdminSession();
   try {
     const userId = String(formData.get("userId") ?? "");
     const cardId = String(formData.get("cardId") ?? "");
@@ -387,6 +393,7 @@ export async function importStatementCsvAction(formData: FormData): Promise<Impo
 }
 
 export async function importManualStatementAction(formData: FormData): Promise<ImportStatementResult> {
+  await requireAdminSession();
   try {
     const userId = String(formData.get("userId") ?? "");
     const cardId = String(formData.get("cardId") ?? "");
@@ -469,6 +476,7 @@ const createCategoryInput = z.object({ name: categoryNameSchema });
 export async function createCategoryAction(
   input: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) return { ok: false, error: "Sesión inválida." };
   try {
@@ -495,6 +503,7 @@ const updateCategoryInput = z.object({ id: z.string().min(1), name: categoryName
 export async function updateCategoryAction(
   input: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) return { ok: false, error: "Sesión inválida." };
   try {
@@ -524,6 +533,7 @@ const setCategoryActiveInput = z.object({ id: z.string().min(1), active: z.boole
 export async function setCategoryActiveAction(
   input: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) return { ok: false, error: "Sesión inválida." };
   try {
@@ -550,6 +560,7 @@ const deleteCategoryInput = z.object({ id: z.string().min(1) });
 export async function deleteCategoryAction(
   input: unknown,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) return { ok: false, error: "Sesión inválida." };
   try {

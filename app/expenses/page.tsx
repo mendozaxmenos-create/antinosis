@@ -14,6 +14,7 @@ import { EditExpenseDialog } from "@/components/forms/edit-expense-dialog";
 import { redirect } from "next/navigation";
 import { expenseWhereTransactionDateInCalendarMonth } from "@/lib/month-transaction-filter";
 import { categoriesWhereForExpenseForms } from "@/lib/category-queries";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 function expenseSourceLabel(sourceType: string): string {
   const map: Record<string, string> = {
@@ -30,6 +31,7 @@ export default async function ExpensesPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) {
     redirect("/setup");

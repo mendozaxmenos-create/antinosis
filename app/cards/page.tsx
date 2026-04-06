@@ -8,8 +8,10 @@ import { DeleteCardButton } from "@/components/forms/delete-card-button";
 import { redirect } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CreditCard } from "lucide-react";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export default async function CardsPage() {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) {
     redirect("/setup");

@@ -22,12 +22,14 @@ import { calculateMonthlyLimit } from "@/lib/calculations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { getEnvChecks } from "@/lib/env-status";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) redirect("/setup");
 

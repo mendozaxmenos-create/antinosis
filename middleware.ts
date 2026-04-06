@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { APP_GATE_COOKIE, verifyAppGateToken } from "@/lib/app-gate";
+import { isAdminAuthEnabledFromEnv } from "@/lib/admin-auth-config";
 
 export async function middleware(request: NextRequest) {
-  const password = process.env.APP_PASSWORD;
-  if (!password) {
-    return NextResponse.next();
-  }
-
   const { pathname } = request.nextUrl;
-  if (pathname.startsWith("/login")) {
-    return NextResponse.next();
-  }
+  const isLogin = pathname.startsWith("/login");
 
-  const token = request.cookies.get(APP_GATE_COOKIE)?.value;
-  if (token && (await verifyAppGateToken(password, token))) {
+  // Auth por OAuth (admin) se valida en server components/actions (no Edge).
+  if (isAdminAuthEnabledFromEnv(process.env)) return NextResponse.next();
+
+  // Fallback: puerta global APP_PASSWORD (modo legacy).
+  const password = process.env.APP_PASSWORD;
+  if (!password) return NextResponse.next();
+  if (isLogin) return NextResponse.next();
+
+  const gateToken = request.cookies.get(APP_GATE_COOKIE)?.value;
+  if (gateToken && (await verifyAppGateToken(password, gateToken))) {
     return NextResponse.next();
   }
 

@@ -27,12 +27,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
+  await requireAdminSession();
   const userId = await getDefaultUserId();
   if (!userId) {
     redirect("/setup");
