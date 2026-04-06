@@ -32,6 +32,13 @@ export function getEnvChecks(): EnvCheck[] {
       notes: "Habilita login OAuth admin (NextAuth/Auth.js).",
     },
     {
+      key: "NEXTAUTH_URL",
+      label: "NextAuth (URL canónica)",
+      requiredInProduction: false,
+      configured: has("NEXTAUTH_URL"),
+      notes: "Recomendado en Vercel con OAuth: https://tu-dominio (sin barra final).",
+    },
+    {
       key: "ADMIN_EMAILS",
       label: "Auth admin (allowlist emails)",
       requiredInProduction: false,
