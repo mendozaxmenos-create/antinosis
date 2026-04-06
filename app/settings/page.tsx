@@ -20,6 +20,8 @@ import { redirect } from "next/navigation";
 import { Cloud } from "lucide-react";
 import { calculateMonthlyLimit } from "@/lib/calculations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { getEnvChecks } from "@/lib/env-status";
 
 export default async function SettingsPage({
   searchParams,
@@ -73,6 +75,8 @@ export default async function SettingsPage({
   const monthsWithNetIncome = evolutionSeries.filter((p) => p.netIncome > 0).length;
   const bonusRegLabel =
     salaryBonuses.length === 1 ? "1 registro" : `${salaryBonuses.length} registros`;
+  const envChecks = getEnvChecks();
+  const missingRequired = envChecks.filter((c) => c.requiredInProduction && !c.configured).length;
 
   return (
     <div className="space-y-10">
@@ -124,6 +128,57 @@ export default async function SettingsPage({
             </CardDescription>
           </div>
         </CardHeader>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Checklist de variables (Vercel / producción)</CardTitle>
+          <CardDescription>
+            Solo indica si están configuradas (no muestra valores). Útil para evitar fallos de deploy, imports u OAuth.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {missingRequired > 0 ? (
+            <Alert variant="destructive">
+              <AlertTitle>Faltan variables obligatorias</AlertTitle>
+              <AlertDescription>
+                Hay {missingRequired} variable(s) marcada(s) como obligatoria(s) para producción sin configurar.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="border-emerald-600/30 bg-emerald-500/5">
+              <AlertTitle>OK</AlertTitle>
+              <AlertDescription>Las variables obligatorias para producción están configuradas.</AlertDescription>
+            </Alert>
+          )}
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Variable</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Uso</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {envChecks.map((c) => (
+                <TableRow key={c.key}>
+                  <TableCell className="font-mono text-xs">{c.key}</TableCell>
+                  <TableCell>
+                    {c.configured ? (
+                      <Badge variant="success">Configurada</Badge>
+                    ) : c.requiredInProduction ? (
+                      <Badge variant="destructive">Falta</Badge>
+                    ) : (
+                      <Badge variant="secondary">Opcional</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{c.notes ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
       </Card>
 
       {showSalaryReminder ? (
