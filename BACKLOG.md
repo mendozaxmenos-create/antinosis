@@ -72,7 +72,8 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 | **i18n** | La navegación principal y metadatos por defecto en **español**; puede quedar **inglés residual** en alguna pantalla o componente (revisión fina pendiente). |
 | **Moneda** | **Resuelto en código:** `formatCurrency` usa `NEXT_PUBLIC_CURRENCY` + `NEXT_PUBLIC_LOCALE` (por defecto ARS / es-AR). `formatUsd` sigue para montos explícitos en dólares en importaciones. |
 | **Bonos de sueldo vs CuantoQueda** | Los **bonos** registrados en Configuración suman en la **evolución** (neto + bonos por mes) y en la tabla de bonos; **no** modifican el tope de gasto manual ni los KPI principales del dashboard (solo el sueldo neto guardado). Opcional futuro: reflejar bonos en ingreso de referencia del mes en `/dashboard`. |
-| **Cuotas** | Sin seguimiento por cuota: hoy los movimientos en cuotas no se proyectan mes a mes (importe restante, N de cuota, vencimiento por mes). Ver pendiente P1. |
+| **Import de resúmenes: aprobación y categorías** | Hoy el import crea gastos automáticamente con categorización heurística (o cae a “Other”). Falta un flujo de **preview + aprobación** donde **todas** las líneas queden asociadas a una categoría antes de confirmar, y un mecanismo de “aprendizaje” por comercio/descripcion para mejorar sugerencias futuras. |
+| **Cuotas** | Sin seguimiento por cuota: `Expense.installments` existe, pero en importación hoy se guarda **siempre 1** y no se proyectan cuotas a meses siguientes. Pendiente: detectar X/Y cuando aparezca en el texto y **imputar** automáticamente a los meses siguientes + KPI (ver P1). |
 | **Adicionales de tarjeta** | Sin datos de titulares adicionales en el alta/edición de tarjeta; el import no asocia consumos a un adicional; dashboard sin KPI por adicional (ver P1). |
 | **Bonificaciones / reintegros** | En resúmenes suelen aparecer como BONIF, promos o créditos; hoy el import puede ignorarlos. Pendiente: capturarlos y un KPI dedicado (ver P1). |
 | **Fidelización (millas / puntos)** | Sin tracking de programas tipo Millas BBVA, Aerolíneas Plus, etc.; pendiente modelo + KPI (ver P1). |
@@ -109,28 +110,41 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 ### P1 — Producto
 
-6. **Compras en cuotas** — Vista o apartado que liste compras financiadas: cuotas totales, cuota actual, importe pendiente por mes de vencimiento (alineado al cierre/resumen de la tarjeta). Hoy el import guarda `installments` por defecto en 1; conviene parser por banco + modelo de “plan de cuotas” si hace falta.
-7. **Bonificaciones y reintegros en resúmenes** — Campo o entidad para movimientos de crédito del resumen (promociones del banco, BONIF, reintegros por compra). Sirve para **otro KPI**: reintegros del período, “ahorro efectivo” vs consumo bruto, evolución mes a mes. Los parsers hoy suelen descartar importes no positivos; habría que persistirlos aparte o con signo/clarificados.
-8. **Programas de fidelización** — Trackear saldos o movimientos de **Millas BBVA**, **Aerolíneas Plus**, u otros programas vinculados a la tarjeta (carga manual o extracto cuando exista). **Otro KPI** en dashboard: puntos/millas del mes, acumulado, vencimientos si aplica.
-9. **Google Calendar al subir un resumen** — Que cada importación de resumen (CSV/PDF) **registre el vencimiento de pago** en el Google Calendar del usuario cuando tenga cuenta OAuth vinculada. Incluye: comportamiento claro si no hay token, si la API falla, evitar duplicados al reimportar, texto/título del evento (tarjeta, importe a pagar si aplica) y validación en todos los parsers.
-10. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
-11. **Categorías** — CRUD en UI (hoy vienen del seed).
-12. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
-13. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
-14. **Prisma Migrate** — Opcional: pasar de `db push` en deploy a **migraciones versionadas** (`migrate deploy`) para equipos más grandes; hoy el esquema se aplica en cada build de Vercel.
-15. **Adicionales de tarjeta (titulares adicionales)** — En **alta y edición de tarjeta**, permitir registrar uno o más **adicionales** (nombre o etiqueta que figure en el resumen). En **importación de consumos** (CSV/PDF u OCR), **detectar** a qué adicional corresponde cada movimiento según texto del comercio/descripción o patrones del banco, y guardar la asociación. **Dashboard:** al menos un **KPI** agregado (p. ej. gasto del mes por adicional, o comparación titular vs adicionales) coherente con el filtro de mes calendario ya usado en la app.
+5. **Compras en cuotas (proyección automática)** — Detectar cuotas (X/Y) al importar resúmenes y **proyectar** el consumo a meses siguientes según cuotas restantes. Incluye:
+   - Persistir `installments` real en gastos importados (hoy queda en 1 fijo).
+   - Estrategia de imputación: materializar movimientos futuros “cuota N” o calcular una vista agregada (definir qué preferís).
+   - Leyenda visible: “Importado (cuotas)” en los meses futuros.
+   - KPI mensual: **total ARS en cuotas imputadas** en el mes (y que se sume a consumos de meses próximos).
+6. **Bonificaciones y reintegros en resúmenes** — Campo o entidad para movimientos de crédito del resumen (promociones del banco, BONIF, reintegros por compra). Sirve para **otro KPI**: reintegros del período, “ahorro efectivo” vs consumo bruto, evolución mes a mes. Los parsers hoy suelen descartar importes no positivos; habría que persistirlos aparte o con signo/clarificados.
+7. **Programas de fidelización** — Trackear saldos o movimientos de **Millas BBVA**, **Aerolíneas Plus**, u otros programas vinculados a la tarjeta (carga manual o extracto cuando exista). **Otro KPI** en dashboard: puntos/millas del mes, acumulado, vencimientos si aplica.
+8. **Google Calendar al subir un resumen** — Que cada importación de resumen (CSV/PDF) **registre el vencimiento de pago** en el Google Calendar del usuario cuando tenga cuenta OAuth vinculada. Incluye: comportamiento claro si no hay token, si la API falla, evitar duplicados al reimportar, texto/título del evento (tarjeta, importe a pagar si aplica) y validación en todos los parsers.
+9. **Import CSV** — Plantilla descargable; validación de columnas; formato por banco (1–2 bancos objetivo).
+10. **Categorías** — CRUD en UI (hoy vienen del seed).
+11. **Gráficos de evolución (ingresos vs tarjeta / bonos / resúmenes)** — Agregar gráficos para analizar tendencias:
+   - **Bonos**: gráfico con los últimos bonos cargados (y/o bonos por mes).
+   - **Resúmenes**: gráfico de resúmenes subidos por mes (cantidad y total ARS).
+   - **Comparación**: evolución mensual de ingresos (neto o neto+bonos) vs gastos con tarjeta (importados).
+12. **Importación con revisión y aprendizaje de categorías** — Antes de “confirmar” un resumen:
+   - Preview (parse + USD→ARS) con sugerencia de categoría.
+   - UI para revisar consumos y **obligar** categoría en cada línea antes de aprobar.
+   - Guardar reglas aprendidas (merchant/descripcion → categoría) para mejorar sugerencias futuras.
+   - Opcional: fallback OCR si el PDF es escaneado y no se puede parsear por texto.
+13. **PWA** — `manifest.json`, iconos, theme-color para móvil (complementa el botón Actualizar de la cabecera).
+14. **Pull-to-refresh** — Gesto de tirar para actualizar en móvil (además del botón en header).
+15. **Prisma Migrate** — Opcional: pasar de `db push` en deploy a **migraciones versionadas** (`migrate deploy`) para equipos más grandes; hoy el esquema se aplica en cada build de Vercel.
+16. **Adicionales de tarjeta (titulares adicionales)** — En **alta y edición de tarjeta**, permitir registrar uno o más **adicionales** (nombre o etiqueta que figure en el resumen). En **importación de consumos** (CSV/PDF u OCR), **detectar** a qué adicional corresponde cada movimiento según texto del comercio/descripción o patrones del banco, y guardar la asociación. **Dashboard:** al menos un **KPI** agregado (p. ej. gasto del mes por adicional, o comparación titular vs adicionales) coherente con el filtro de mes calendario ya usado en la app.
 
 ### QA / validación manual (pendiente de confirmar en tu entorno)
 
-- **Import de resumen + Google Calendar** — Probar flujo completo: `GOOGLE_*` + `NEXT_PUBLIC_APP_URL` en `.env` o Vercel; conectar Calendar en **Resúmenes**; subir CSV o PDF; verificar que en Google Calendar aparezca un **evento de día completo** en la fecha de vencimiento calculada (según día de vencimiento de la tarjeta). Objetivo de producto (ver P1 ítem 9): que esto sea el comportamiento estable y visible para el usuario. Si falla, revisar consentimiento OAuth, redirect URI y logs del deploy.
+- **Import de resumen + Google Calendar** — Probar flujo completo: `GOOGLE_*` + `NEXT_PUBLIC_APP_URL` en `.env` o Vercel; conectar Calendar en **Resúmenes**; subir CSV o PDF; verificar que en Google Calendar aparezca un **evento de día completo** en la fecha de vencimiento calculada (según día de vencimiento de la tarjeta). Objetivo de producto (ver P1 ítem 8): que esto sea el comportamiento estable y visible para el usuario. Si falla, revisar consentimiento OAuth, redirect URI y logs del deploy.
 
 ### P2 — Calidad y escala
 
-16. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
-17. **Observabilidad** — Logs en imports/OAuth; páginas de error amigables (p. ej. `/imports` tiene `error.tsx`); revisar resto de rutas.
-18. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
-19. **Export** — CSV/Excel de gastos por rango.
-20. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
+17. **Tests** — Cálculos, parsers CSV y OCR, actions críticas.
+18. **Observabilidad** — Logs en imports/OAuth; páginas de error amigables (p. ej. `/imports` tiene `error.tsx`); revisar resto de rutas.
+19. **Multi-usuario** — Cuentas reales + aislamiento (datos ya van por `userId`).
+20. **Export** — CSV/Excel de gastos por rango.
+21. **OCR** — Mejorar precisión o modelo alternativo; más plantillas de comprobantes (bancos, billeteras).
 
 ---
 
@@ -138,7 +152,7 @@ Documento vivo: **qué hay hoy** en el repo y **qué falta** para cerrar un MVP 
 
 | Listo | Pendiente destacado |
 |-------|----------------------|
-| Ingresos/límites con **vencimientos de tarjeta en el mes**, **bonos de sueldo + evolución neto/bonos en Configuración**, **puerta opcional `APP_PASSWORD`** (`/login`, cookie), **onboarding** en CuantoQueda y Cards (alertas / vacíos), **locale/moneda** (`es-AR` / `ARS` por defecto), KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth por usuario** + **admin** (contraseña, rol), **dashboard de operaciones** (usuarios activos, trial, canon/MRR) y **acceso admin desde la app**; **Calendar al importar resumen**; bonificaciones/reintegros + KPI; millas/puntos; adicionales de tarjeta; cuotas; categorías; PWA/pull-to-refresh; tests; migraciones |
+| Ingresos/límites con **vencimientos de tarjeta en el mes**, **bonos de sueldo + evolución neto/bonos en Configuración**, **puerta opcional `APP_PASSWORD`** (`/login`, cookie), **onboarding** en CuantoQueda y Cards (alertas / vacíos), **locale/moneda** (`es-AR` / `ARS` por defecto), KPIs, setup, OCR en gastos (imagen), alertas in-app + Telegram/email, CSV, Calendar opcional, botón Actualizar en móvil, deploy sin `db push` en build | **Auth por usuario** + **admin** (contraseña, rol), **dashboard de operaciones** (usuarios activos, trial, canon/MRR) y **acceso admin desde la app**; **Calendar al importar resumen**; **import con aprobación** (categorías obligatorias + aprendizaje); **gráficos** (bonos, resúmenes, ingresos vs tarjeta); cuotas proyectadas; PWA/pull-to-refresh; tests; migraciones |
 
 ---
 

@@ -245,7 +245,7 @@ El detalle vivo está en **[BACKLOG.md](./BACKLOG.md)**. Resumen:
 | Prioridad | Temas principales |
 |-----------|-------------------|
 | **P0** | Auth por **usuario** / **admin** y **dashboard de operaciones** al salir al público; variables en Vercel (incl. `APP_PASSWORD` si aplica). |
-| **P1** | Cuotas y seguimiento mensual; bonificaciones/reintegros + KPI; millas/puntos + KPI; **adicionales de tarjeta** (alta/edición, detección en consumos importados, KPI en dashboard); **Google Calendar al importar** (cerrar flujo: duplicados, errores visibles); plantilla/validación CSV; categorías editables en UI; PWA; pull-to-refresh; migraciones Prisma formales. |
+| **P1** | **Cuotas proyectadas**; bonificaciones/reintegros + KPI; millas/puntos + KPI; **Google Calendar al importar**; plantilla/validación CSV; categorías editables; **import con revisión/aprobación + aprendizaje de categorías**; **gráficos** (bonos, resúmenes, ingresos vs gastos importados); PWA; pull-to-refresh; migraciones Prisma formales; **adicionales de tarjeta** (alta/edición, detección en consumos importados, KPI en dashboard). |
 | **QA** | Validar import CSV/PDF + evento en Google Calendar en tu entorno. |
 | **P2** | Tests (incl. parsers), observabilidad, multi-usuario real, export CSV/Excel, mejoras OCR/plantillas. |
 
