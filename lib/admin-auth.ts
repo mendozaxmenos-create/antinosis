@@ -1,22 +1,27 @@
 import { redirect } from "next/navigation";
 
-import { isAdminAuthEnabledFromEnv, isAdminEmailFromEnv } from "@/lib/admin-auth-config";
+import { isAppAuthEnabledFromEnv, isAdminEmailFromEnv } from "@/lib/admin-auth-config";
 
-export const isAdminAuthEnabled = () => isAdminAuthEnabledFromEnv(process.env);
-export const isAdminEmail = (email: string | null | undefined) => isAdminEmailFromEnv(email, process.env);
+export const isAppAuthEnabled = () => isAppAuthEnabledFromEnv(process.env);
+
+/** Emails listados en ADMIN_EMAILS reciben rol `admin` al crear la cuenta. */
+export const isAdminEmail = (email: string | null | undefined) =>
+  isAdminEmailFromEnv(email, process.env);
 
 /**
- * En modo admin-auth, exige sesión y que el email esté permitido.
- * Si admin-auth no está configurado, no hace nada (mantiene el modo single-tenant abierto).
+ * Si el login por app está configurado, exige sesión válida; si no, modo legacy (sin gate OAuth).
  */
-export async function requireAdminSession() {
-  if (!isAdminAuthEnabled()) return null;
+export async function requireAuthSession() {
+  if (!isAppAuthEnabled()) return null;
   const { auth } = await import("@/lib/auth");
   const session = await auth();
-  const email = session?.user?.email ?? null;
-  if (!isAdminEmail(email)) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
   return session;
 }
 
+/** Alias histórico — mismo comportamiento que `requireAuthSession`. */
+export async function requireAdminSession() {
+  return requireAuthSession();
+}

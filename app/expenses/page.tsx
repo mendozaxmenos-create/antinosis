@@ -3,7 +3,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
-import { getDefaultUserId } from "@/lib/user";
+import { getCurrentUserId } from "@/lib/user";
 import { defaultExpenseDateForBudgetMonth, formatCurrency } from "@/lib/helpers";
 import { parseMonthYearFromSearchParams } from "@/lib/parse-month-year-params";
 import { MonthYearUrlNav } from "@/components/month-year-url-nav";
@@ -14,7 +14,7 @@ import { EditExpenseDialog } from "@/components/forms/edit-expense-dialog";
 import { redirect } from "next/navigation";
 import { expenseWhereTransactionDateInCalendarMonth } from "@/lib/month-transaction-filter";
 import { categoriesWhereForExpenseForms } from "@/lib/category-queries";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireAuthSession } from "@/lib/admin-auth";
 
 function expenseSourceLabel(sourceType: string): string {
   const map: Record<string, string> = {
@@ -31,8 +31,8 @@ export default async function ExpensesPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  await requireAdminSession();
-  const userId = await getDefaultUserId();
+  await requireAuthSession();
+  const userId = await getCurrentUserId();
   if (!userId) {
     redirect("/setup");
   }

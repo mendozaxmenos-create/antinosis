@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { formatCurrency, isCalendarMonthCurrent } from "@/lib/helpers";
 import { parseMonthYearFromSearchParams } from "@/lib/parse-month-year-params";
 import { MonthYearUrlNav } from "@/components/month-year-url-nav";
-import { getDefaultUserId } from "@/lib/user";
+import { getCurrentUserId } from "@/lib/user";
 import { countMonthsWithNetIncome, getMonthFinancials, sumRegisteredNetIncome } from "@/services/budgetService";
 import {
   getCategoryTotalsForMonth,
@@ -27,15 +27,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireAuthSession } from "@/lib/admin-auth";
 
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  await requireAdminSession();
-  const userId = await getDefaultUserId();
+  await requireAuthSession();
+  const userId = await getCurrentUserId();
   if (!userId) {
     redirect("/setup");
   }

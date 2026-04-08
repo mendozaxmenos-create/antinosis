@@ -8,7 +8,7 @@ import { StatementUploadsChart } from "@/components/charts/statement-uploads-cha
 import { IncomeVsImportedChart } from "@/components/charts/income-vs-imported-chart";
 import { parseMonthYearFromSearchParams } from "@/lib/parse-month-year-params";
 import { formatCurrency } from "@/lib/helpers";
-import { getDefaultUserId } from "@/lib/user";
+import { getCurrentUserId } from "@/lib/user";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateBudgetConfig, listBudgetHistory, sumRegisteredNetIncome } from "@/services/budgetService";
 import {
@@ -30,15 +30,15 @@ import { calculateMonthlyLimit } from "@/lib/calculations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { getEnvChecks } from "@/lib/env-status";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireAuthSession } from "@/lib/admin-auth";
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  await requireAdminSession();
-  const userId = await getDefaultUserId();
+  await requireAuthSession();
+  const userId = await getCurrentUserId();
   if (!userId) redirect("/setup");
 
   const { month, year } = parseMonthYearFromSearchParams(searchParams);

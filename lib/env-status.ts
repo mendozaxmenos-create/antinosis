@@ -29,7 +29,7 @@ export function getEnvChecks(): EnvCheck[] {
       label: "Auth admin (secret)",
       requiredInProduction: false,
       configured: has("AUTH_SECRET"),
-      notes: "Habilita login OAuth admin (NextAuth/Auth.js).",
+      notes: "NextAuth: sesión y magic link; obligatorio si usás login por app.",
     },
     {
       key: "NEXTAUTH_URL",
@@ -40,17 +40,17 @@ export function getEnvChecks(): EnvCheck[] {
     },
     {
       key: "ADMIN_EMAILS",
-      label: "Auth admin (allowlist emails)",
+      label: "Rol admin (emails)",
       requiredInProduction: false,
       configured: has("ADMIN_EMAILS"),
-      notes: "Emails separados por coma que pueden entrar como admin.",
+      notes: "Opcional: esas cuentas reciben rol admin al registrarse (panel futuro).",
     },
     {
       key: "APP_PASSWORD",
       label: "Puerta de acceso (opcional)",
       requiredInProduction: false,
       configured: has("APP_PASSWORD"),
-      notes: "Modo legacy. Si Auth admin está configurado, se ignora.",
+      notes: "Modo legacy sin OAuth/magic link. Si el login por app está configurado, se ignora.",
     },
     {
       key: "NEXT_PUBLIC_LOCALE",

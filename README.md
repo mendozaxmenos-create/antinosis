@@ -36,8 +36,8 @@ Aplicación web para **controlar gasto con tarjeta de crédito**. El núcleo es 
 
 | Área | Qué incluye |
 |------|-------------|
-| **Primer uso** | Ruta `/setup`: creás el único perfil de la instalación (un usuario por base de datos). |
-| **Acceso (opcional)** | Variable **`APP_PASSWORD`**: pantalla `/login`, cookie de sesión de acceso (30 días) y middleware; sin ella, quien tenga la URL entra como hasta ahora. En producción, definila también en Vercel. |
+| **Primer uso** | Con login por app: te registrás en `/login` (OAuth o email). Sin login por app: `/setup` crea el único perfil (instalación legacy). |
+| **Acceso** | **`AUTH_SECRET`** + al menos un proveedor (**Google**, **Microsoft** y/o **magic link** vía Resend): login en `/login`, un **usuario por cuenta** (NextAuth + Prisma). Opcional **`ADMIN_EMAILS`** asigna rol admin. Sin eso, modo legacy: **`APP_PASSWORD`** o URL abierta + `/setup` para el primer perfil. |
 | **Configuración** (`/settings`) | Por mes/año (`?month=&year=`): **sueldo neto** (estimable antes de cobrarlo), **Soledad**, **% de ahorro** sobre *(neto − Soledad)*, **tope manual** opcional, umbrales (60–100 %). Vista previa del **CuantoQueda**. **Bonos de sueldo** (aguinaldo, extras): registro por mes con monto y nota; **evolución** con dos líneas (neto vs bonos del mes) y total en tooltip. **Gráficos:** últimos bonos (barras), resúmenes subidos por mes (total ARS + cantidad), ingreso mensual (neto + bonos) vs gasto importado por mes de operación. Tabla histórica de presupuesto por mes. |
 | **CuantoQueda** (`/dashboard`) | Mismo selector de mes. **Onboarding:** avisos si faltan tarjetas o sueldo neto del mes (enlaces a Cards y Configuración). Tarjeta principal con **saldo disponible** (tope − gasto manual); números del mes: sueldo, Soledad, base, % ahorro, tope, gasto manual; bloque **solo referencia** (total a pagar por resúmenes con vencimiento en el mes, movimientos importados del mes contable). Gauge, categorías/tarjeta, alertas, insights. |
 | **Tarjetas** (`/cards`) | Alta/edición/baja: banco, nombre, marca, últimos 4, días de cierre y vencimiento. Si no hay tarjetas, alerta guía y fila vacía en la tabla. |
@@ -120,12 +120,13 @@ Copiá `.env.example` a `.env`. **No subas `.env`** al repositorio.
 | `NEXT_PUBLIC_CURRENCY` | No | Por defecto `ARS`. Código ISO de moneda para `formatCurrency` (sueldos, topes, gastos). |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google Calendar OAuth. Redirect: `{NEXT_PUBLIC_APP_URL}/api/google-calendar/callback` |
 | `TELEGRAM_BOT_TOKEN` | No | Bot creado con @BotFather; para alertas por Telegram. |
-| `RESEND_API_KEY` / `RESEND_FROM` | No | Envío de emails (dominio verificado en Resend). |
-| `APP_PASSWORD` | No | Si la definís, la app pide contraseña en `/login` (cookie segura; compatible con Google Calendar). Sin variable, el comportamiento es el de siempre (acceso abierto a quien tenga la URL). |
-| `AUTH_SECRET` | No | Habilita login OAuth admin (NextAuth/Auth.js). Recomendado en producción. |
-| `NEXTAUTH_URL` | No | URL canónica de la app (ej. `https://tu-app.vercel.app`). Muy recomendable en **Vercel** junto con OAuth para que coincidan redirecciones y cookies. |
-| `ADMIN_EMAILS` | No | Allowlist de emails (separados por coma) que pueden entrar como admin con OAuth. |
-| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | No | Login con Microsoft Entra ID (Outlook). |
+| `RESEND_API_KEY` / `RESEND_FROM` | No | Alertas por email y/o **magic link** de login (mismo remitente verificado en Resend). |
+| `APP_PASSWORD` | No | Puerta por contraseña **solo si no configuraste** login por app (`AUTH_SECRET` + Google/Microsoft/magic link). |
+| `AUTH_SECRET` | No | NextAuth: sesión JWT y tokens del magic link. Con `GOOGLE_*` y/o `MICROSOFT_*` y/o Resend, activa **login obligatorio** y cuentas por usuario. |
+| `NEXTAUTH_URL` | No | URL canónica (`https://…` o `http://localhost:PUERTO`). Necesaria para OAuth y enlaces del correo. |
+| `ADMIN_EMAILS` | No | Opcional: esos emails reciben **rol admin** al registrarse (panel de operaciones futuro). Ya no bloquea el acceso al resto de usuarios. |
+| `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | No | Login Microsoft (Outlook.com / Hotmail / cuenta personal). |
+| `AUTH_EMAIL_FROM` | No | Solo si querés otro remitente que `RESEND_FROM` para el mail del magic link. |
 
 ---
 

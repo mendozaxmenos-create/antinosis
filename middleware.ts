@@ -1,16 +1,32 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { APP_GATE_COOKIE, verifyAppGateToken } from "@/lib/app-gate";
-import { isAdminAuthEnabledFromEnv } from "@/lib/admin-auth-config";
+import { isAppAuthEnabledFromEnv } from "@/lib/admin-auth-config";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLogin = pathname.startsWith("/login");
 
-  // Auth por OAuth (admin) se valida en server components/actions (no Edge).
-  if (isAdminAuthEnabledFromEnv(process.env)) return NextResponse.next();
+  if (isAppAuthEnabledFromEnv(process.env)) {
+    if (pathname.startsWith("/api/auth") || isLogin) {
+      return NextResponse.next();
+    }
+    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+    const token = await getToken({
+      req: request,
+      secret,
+    });
+    if (!token) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/login";
+      const fullPath = pathname + (request.nextUrl.search || "");
+      loginUrl.searchParams.set("redirect", fullPath || "/");
+      return NextResponse.redirect(loginUrl);
+    }
+    return NextResponse.next();
+  }
 
-  // Fallback: puerta global APP_PASSWORD (modo legacy).
   const password = process.env.APP_PASSWORD;
   if (!password) return NextResponse.next();
   if (isLogin) return NextResponse.next();
@@ -29,9 +45,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Excluye estáticos de Next y favicon; el resto pasa por la puerta si APP_PASSWORD está definida.
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|webp)$).*)",
   ],
 };

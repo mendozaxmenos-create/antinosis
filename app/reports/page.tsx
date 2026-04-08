@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { getDefaultUserId } from "@/lib/user";
+import { getCurrentUserId } from "@/lib/user";
 import { getMonthlySummaries } from "@/services/expenseService";
 import { getCategoryTotalsForMonth, spendingByCardForMonth } from "@/services/expenseService";
 import { MonthComparisonChart } from "@/components/charts/month-comparison-chart";
@@ -11,11 +11,11 @@ import { formatCurrency } from "@/lib/helpers";
 import { currentMonthYear } from "@/lib/helpers";
 import { format } from "date-fns";
 import { redirect } from "next/navigation";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireAuthSession } from "@/lib/admin-auth";
 
 export default async function ReportsPage() {
-  await requireAdminSession();
-  const userId = await getDefaultUserId();
+  await requireAuthSession();
+  const userId = await getCurrentUserId();
   if (!userId) {
     redirect("/setup");
   }

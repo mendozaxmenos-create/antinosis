@@ -2,17 +2,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
-import { getDefaultUserId } from "@/lib/user";
+import { getCurrentUserId } from "@/lib/user";
 import { CardForm } from "@/components/forms/card-form";
 import { DeleteCardButton } from "@/components/forms/delete-card-button";
 import { redirect } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CreditCard } from "lucide-react";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireAuthSession } from "@/lib/admin-auth";
 
 export default async function CardsPage() {
-  await requireAdminSession();
-  const userId = await getDefaultUserId();
+  await requireAuthSession();
+  const userId = await getCurrentUserId();
   if (!userId) {
     redirect("/setup");
   }

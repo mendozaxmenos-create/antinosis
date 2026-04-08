@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getDefaultUserId } from "@/lib/user";
+import { requireAuthSession } from "@/lib/admin-auth";
+import { getCurrentUserId } from "@/lib/user";
 
 const createSchema = z.object({
   month: z.number().int().min(1).max(12),
@@ -18,7 +19,8 @@ export async function createSalaryBonusAction(input: {
   amount: number;
   label?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
-  const userId = await getDefaultUserId();
+  await requireAuthSession();
+  const userId = await getCurrentUserId();
   if (!userId) return { ok: false, error: "No hay usuario." };
 
   const parsed = createSchema.safeParse(input);
@@ -43,7 +45,8 @@ export async function createSalaryBonusAction(input: {
 export async function deleteSalaryBonusAction(
   bonusId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const userId = await getDefaultUserId();
+  await requireAuthSession();
+  const userId = await getCurrentUserId();
   if (!userId) return { ok: false, error: "No hay usuario." };
 
   const row = await prisma.salaryBonus.findFirst({

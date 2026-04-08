@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { getDefaultUserId } from "@/lib/user";
+import { getCurrentUserId } from "@/lib/user";
 import { currentMonthYear, formatArs, formatUsd, safeFormatDate, safeFormatMonthYearLabel } from "@/lib/helpers";
 import { loadImportsPageData } from "@/lib/imports-page-data";
 import { ManualStatementForm } from "@/components/forms/manual-statement-form";
@@ -10,7 +10,7 @@ import { GoogleCalendarConnect } from "@/components/integrations/google-calendar
 import { StatementImportRowActions } from "@/components/imports/statement-import-row-actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { redirect } from "next/navigation";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { requireAuthSession } from "@/lib/admin-auth";
 
 /** Vercel/Next: tiempo máximo para Server Action de import (PDF + BCRA + Prisma). */
 export const maxDuration = 60;
@@ -20,8 +20,8 @@ export default async function ImportsPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  await requireAdminSession();
-  const userId = await getDefaultUserId();
+  await requireAuthSession();
+  const userId = await getCurrentUserId();
   if (!userId) {
     redirect("/setup");
   }

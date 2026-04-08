@@ -17,6 +17,9 @@ async function main() {
   await prisma.statementImport.deleteMany();
   await prisma.reconciliationResult.deleteMany();
   await prisma.creditCard.deleteMany();
+  await prisma.session.deleteMany();
+  await prisma.account.deleteMany();
+  await prisma.verificationToken.deleteMany();
   await prisma.user.deleteMany();
   await prisma.category.deleteMany();
 
